@@ -1,0 +1,8 @@
+# Compiled
+
+/server
+/server.exe
+
+# Configuration
+
+.env

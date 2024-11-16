@@ -1,0 +1,52 @@
+{
+  "name": "@asanrom/hls-websocket-cdn",
+  "version": "1.0.0",
+  "description": "Javascript client for HLS Websocket CDN.",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "homepage": "https://github.com/AgustinSRG/hls-websocket-cdn/client-js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AgustinSRG/hls-websocket-cdn"
+  },
+  "scripts": {
+    "prebuild": "npm run lint",
+    "compile": "tsc --pretty --declaration && webpack",
+    "build": "rimraf dist && npm run compile",
+    "lint": "eslint --fix src/**/*.ts",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -b -r ts-node/register 'tests/**/*.ts'",
+    "gendoc": "typedoc --out docs ./src"
+  },
+  "files": [
+    "dist/"
+  ],
+  "author": {
+    "name": "Agustin San Roman",
+    "email": "agustinsanromanguzman@gmail.com",
+    "url": "https://github.com/AgustinSRG"
+  },
+  "engines": {
+    "node": ">= 20.0.0"
+  },
+  "pre-commit": [
+    "lint"
+  ],
+  "devDependencies": {
+    "@types/mocha": "10.0.1",
+    "@types/node": "18.15.3",
+    "@types/ws": "8.5.12",
+    "@typescript-eslint/eslint-plugin": "5.55.0",
+    "@typescript-eslint/parser": "5.55.0",
+    "dotenv": "16.4.5",
+    "eslint": "8.36.0",
+    "mocha": "10.2.0",
+    "rimraf": "4.4.0",
+    "ts-loader": "9.4.2",
+    "ts-node": "10.9.1",
+    "typedoc": "0.23.27",
+    "typescript": "4.9.5",
+    "webpack": "5.96.1",
+    "webpack-cli": "5.0.1"
+  },
+  "license": "MIT"
+}
