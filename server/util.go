@@ -45,3 +45,19 @@ func GetEnvInt(key string, defaultVal int) int {
 
 	return v
 }
+
+func GetEnvInt64(key string, defaultVal int64) int64 {
+	vString := os.Getenv(key)
+
+	if vString == "" {
+		return defaultVal
+	}
+
+	v, e := strconv.ParseInt(vString, 10, 64)
+
+	if e != nil {
+		return defaultVal
+	}
+
+	return v
+}
