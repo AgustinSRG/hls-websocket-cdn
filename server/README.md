@@ -81,7 +81,19 @@ You can configure the server using environment variables.
 
 ### Websocket protocol configuration
 
-| Variable                  | Description                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| `WEBSOCKET_PREFIX`        | Path clients must use to connect to the server. By default: `/`.                     |
-| `MAX_BINARY_MESSAGE_SIZE` | When handling binary messages, what is the limit for them, in bytes. Default: 50 MB. |
+| Variable                  | Description                                                                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXTERNAL_WEBSOCKET_URL`  | External websocket URL of the server, for other servers to connect with it. If empty, it will be automatically detected from the network interfaces. |
+| `WEBSOCKET_PREFIX`        | Path clients must use to connect to the server. By default: `/`.                                                                                     |
+| `MAX_BINARY_MESSAGE_SIZE` | When handling binary messages, what is the limit for them, in bytes. Default: 50 MB.                                                                 |
+
+### Publish registry (Redis)
+
+| Variable                           | Description                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| `PUB_REG_REDIS_ENABLED`            | Can be `YES` or `NO`. Set it to `YES` in order to enable the redis publish registry. |
+| `PUB_REG_REDIS_HOST`               | Redis host. Default: `127.0.0.1`                                                     |
+| `PUB_REG_REDIS_PORT`               | Redis port. Default: `6379`                                                          |
+| `PUB_REG_REDIS_PASSWORD`           | Password to authenticate to the Redis server.                                        |
+| `PUB_REG_REDIS_USE_TLS`            | Can be `YES` or `NO`. Set it to `YES` in order to use TLS to connect to Redis.       |
+| `PUB_REG_REFRESH_INTERVAL_SECONDS` | Number of seconds to refresh publish registry entries. Default `60` seconds.         |

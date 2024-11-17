@@ -15,6 +15,39 @@ func main() {
 	SetDebugLogEnabled(GetEnvBool("LOG_DEBUG", false))
 	SetInfoLogEnabled(GetEnvBool("LOG_INFO", true))
 
+	// External URL
+	externalWebsocketUrl := FigureOutExternalServerWebsocketUrl()
+
+	if externalWebsocketUrl != "" {
+		LogInfo("External websocket URL: " + externalWebsocketUrl)
+	} else {
+		LogWarning("Could not load external websocket URL. It will be impossible to register the publishing streams.")
+	}
+
+	// Publish registry
+	var publishRegistry *RedisPublishRegistry = nil
+
+	if GetEnvBool("PUB_REG_REDIS_ENABLED", false) {
+		pr, err := NewRedisPublishRegistry(RedisPublishRegistryConfig{
+			Host:                          GetEnvString("PUB_REG_REDIS_HOST", "127.0.0.1"),
+			Port:                          GetEnvInt("PUB_REG_REDIS_PORT", 6379),
+			Password:                      GetEnvString("PUB_REG_REDIS_PASSWORD", ""),
+			UseTls:                        GetEnvBool("PUB_REG_REDIS_USE_TLS", false),
+			ExternalWebsocketUrl:          externalWebsocketUrl,
+			PublishRefreshIntervalSeconds: GetEnvInt("PUB_REG_REFRESH_INTERVAL_SECONDS", 60),
+		})
+
+		if err != nil {
+			LogError(err, "Could not initialize publish registry")
+		}
+
+		publishRegistry = pr
+	}
+
+	if publishRegistry != nil {
+		LogInfo("Initialized publish registry")
+	}
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
