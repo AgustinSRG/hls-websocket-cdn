@@ -13,9 +13,6 @@ import (
 // Period to send HEARTBEAT messages to the client
 const HEARTBEAT_MSG_PERIOD_SECONDS = 30
 
-// Max time with no HEARTBEAT messages to consider the connection dead
-const HEARTBEAT_TIMEOUT_MS = 2 * HEARTBEAT_MSG_PERIOD_SECONDS * 1000
-
 // Limit (in bytes) for text messages (to prevent DOS attacks)
 const TEXT_MSG_READ_LIMIT = 1600
 
@@ -120,7 +117,15 @@ func (ch *ConnectionHandler) Run() {
 	go ch.sendHeartbeatMessages() // Start heartbeat sending
 
 	for {
-		err := ch.connection.SetReadDeadline(time.Now().Add(60 * time.Second))
+		var deadline time.Time
+
+		if ch.mode == 0 {
+			deadline = time.Now().Add(HEARTBEAT_MSG_PERIOD_SECONDS * time.Second)
+		} else {
+			deadline = time.Now().Add(HEARTBEAT_MSG_PERIOD_SECONDS * 2 * time.Second)
+		}
+
+		err := ch.connection.SetReadDeadline(deadline)
 
 		if err != nil {
 			break
@@ -162,11 +167,18 @@ func (ch *ConnectionHandler) ReadTextMessage() bool {
 	switch parsedMessage.MessageType {
 	case "E":
 		ch.LogDebug("Error from client. Code: " + parsedMessage.GetParameter("code") + ", Message: " + parsedMessage.GetParameter("message"))
+		return false
 	case "PULL":
+		return ch.HandlePull(parsedMessage)
 	case "PUSH":
-	case "OK":
+		return ch.HandlePush(parsedMessage)
 	case "F":
 	case "CLOSE":
+	}
+
+	if ch.mode == 0 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Expected action message (PUSH, PULL) as the first message")
+		return false
 	}
 
 	return true
@@ -278,4 +290,94 @@ func (ch *ConnectionHandler) SendWithBinary(msg *WebsocketProtocolMessage, binar
 	ch.connection.WriteMessage(websocket.BinaryMessage, []byte(binaryData))
 
 	ch.lastSentMessage = time.Now().UnixMilli()
+}
+
+// Handles the PULL message
+func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
+	if ch.mode != 0 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "A PUSH message may only be sent as the first message")
+		return false
+	}
+
+	streamId := msg.GetParameter("stream")
+
+	if streamId == "" {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Stream ID cannot be empty")
+		return false
+	}
+
+	if len(streamId) > 255 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Stream ID cannot be larger than 255 characters")
+		return false
+	}
+
+	authToken := msg.GetParameter("auth")
+
+	if authToken == "" {
+		ch.SendErrorMessage("AUTH_ERROR", "Auth token cannot be empty")
+		return false
+	}
+
+	if !ch.server.authController.ValidatePullToken(authToken, streamId) {
+		ch.SendErrorMessage("AUTH_ERROR", "Invalid auth token")
+		return false
+	}
+
+	// onlySource := msg.GetParameter("only_source") == "true"
+
+	// TODO PULL the stream
+
+	// Switch mode
+	ch.mode = CONNECTION_MODE_PULL
+
+	// Send OK
+	ch.Send(&WebsocketProtocolMessage{
+		MessageType: "OK",
+	})
+
+	return true
+}
+
+// Handles the PUSH message
+func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
+	if ch.mode != 0 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "A PUSH message may only be sent as the first message")
+		return false
+	}
+
+	streamId := msg.GetParameter("stream")
+
+	if streamId == "" {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Stream ID cannot be empty")
+		return false
+	}
+
+	if len(streamId) > 255 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Stream ID cannot be larger than 255 characters")
+		return false
+	}
+
+	authToken := msg.GetParameter("auth")
+
+	if authToken == "" {
+		ch.SendErrorMessage("AUTH_ERROR", "Auth token cannot be empty")
+		return false
+	}
+
+	if !ch.server.authController.ValidatePushToken(authToken, streamId) {
+		ch.SendErrorMessage("AUTH_ERROR", "Invalid auth token")
+		return false
+	}
+
+	// TODO PULL the stream
+
+	// Switch mode
+	ch.mode = CONNECTION_MODE_PUSH
+
+	// Send OK
+	ch.Send(&WebsocketProtocolMessage{
+		MessageType: "OK",
+	})
+
+	return true
 }

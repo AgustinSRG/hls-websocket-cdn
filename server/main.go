@@ -48,6 +48,13 @@ func main() {
 		LogInfo("Initialized publish registry")
 	}
 
+	// Auth
+	authController := NewAuthController(AuthConfiguration{
+		PullSecret: GetEnvString("PULL_SECRET", ""),
+		PushSecret: GetEnvString("PUSH_SECRET", ""),
+		AllowPush:  GetEnvBool("PUSH_ALLOWED", true),
+	})
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
@@ -64,7 +71,7 @@ func main() {
 		// Other config
 		WebsocketPrefix:      GetEnvString("WEBSOCKET_PREFIX", "/"),
 		MaxBinaryMessageSize: GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", 50*1024*1024),
-	})
+	}, authController)
 
 	// Run server
 

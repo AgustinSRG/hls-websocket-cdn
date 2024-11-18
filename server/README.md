@@ -97,3 +97,11 @@ You can configure the server using environment variables.
 | `PUB_REG_REDIS_PASSWORD`           | Password to authenticate to the Redis server.                                        |
 | `PUB_REG_REDIS_USE_TLS`            | Can be `YES` or `NO`. Set it to `YES` in order to use TLS to connect to Redis.       |
 | `PUB_REG_REFRESH_INTERVAL_SECONDS` | Number of seconds to refresh publish registry entries. Default `60` seconds.         |
+
+### Authentication
+
+| Variable       | Description                                                                    |
+| -------------- | ------------------------------------------------------------------------------ |
+| `PULL_SECRET`  | Secret to sign and validate the authentication tokens for pulling the streams. |
+| `PUSH_SECRET`  | Secret to sign and validate the authentication tokens for pushing the streams. |
+| `PUSH_ALLOWED` | Can be `YES` or `NO`. Set it to `YES` to allow pushing streams to the server.  |

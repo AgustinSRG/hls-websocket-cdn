@@ -8,8 +8,7 @@ The token is a **JSON Web Token (JWT)**, signed with a secret shared by the node
 
 The JWT must have the following fields:
 
- - Subject (`sub`) must be `PUSH` or `PULL`, matching the action message type.
- - Stream (`stream`) must be the ID of the stream, matching the whe one specified in the action message parameters.
+ - Subject (`sub`) must be `PUSH` or `PULL`, matching the action message type, followed by a colon (`:`) and the ID of the target stream. Example: `PULL:{ROOM}/{STREAM_ID}/{WIDTH}x{HEIGHT}-{FPS}~{BITRATE}`
 
 The CDN nodes share 2 secrets:
 

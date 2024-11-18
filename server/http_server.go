@@ -65,15 +65,19 @@ type HttpServer struct {
 
 	// Websocket connection upgrader
 	upgrader *websocket.Upgrader
+
+	// Auth controller
+	authController *AuthController
 }
 
 // Creates HTTP server
-func CreateHttpServer(config HttpServerConfig) *HttpServer {
+func CreateHttpServer(config HttpServerConfig, authController *AuthController) *HttpServer {
 	return &HttpServer{
 		config:           config,
 		upgrader:         &websocket.Upgrader{},
 		mu:               &sync.Mutex{},
 		nextConnectionId: 0,
+		authController:   authController,
 	}
 }
 
