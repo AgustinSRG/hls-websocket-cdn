@@ -68,16 +68,24 @@ type HttpServer struct {
 
 	// Auth controller
 	authController *AuthController
+
+	// Sources controller
+	sourceController *SourcesController
+
+	// Publish registry
+	publishRegistry *RedisPublishRegistry
 }
 
 // Creates HTTP server
-func CreateHttpServer(config HttpServerConfig, authController *AuthController) *HttpServer {
+func CreateHttpServer(config HttpServerConfig, authController *AuthController, sourceController *SourcesController, publishRegistry *RedisPublishRegistry) *HttpServer {
 	return &HttpServer{
 		config:           config,
 		upgrader:         &websocket.Upgrader{},
 		mu:               &sync.Mutex{},
 		nextConnectionId: 0,
 		authController:   authController,
+		sourceController: sourceController,
+		publishRegistry:  publishRegistry,
 	}
 }
 

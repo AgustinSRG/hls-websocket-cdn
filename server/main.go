@@ -55,6 +55,11 @@ func main() {
 		AllowPush:  GetEnvBool("PUSH_ALLOWED", true),
 	})
 
+	// Sources controller
+	sourcesController := NewSourcesController(SourcesControllerConfig{
+		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+	})
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
@@ -71,7 +76,7 @@ func main() {
 		// Other config
 		WebsocketPrefix:      GetEnvString("WEBSOCKET_PREFIX", "/"),
 		MaxBinaryMessageSize: GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", 50*1024*1024),
-	}, authController)
+	}, authController, sourcesController, publishRegistry)
 
 	// Run server
 

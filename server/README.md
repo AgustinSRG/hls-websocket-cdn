@@ -105,3 +105,9 @@ You can configure the server using environment variables.
 | `PULL_SECRET`  | Secret to sign and validate the authentication tokens for pulling the streams. |
 | `PUSH_SECRET`  | Secret to sign and validate the authentication tokens for pushing the streams. |
 | `PUSH_ALLOWED` | Can be `YES` or `NO`. Set it to `YES` to allow pushing streams to the server.  |
+
+## Other options
+
+| Variable                     | Description                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| `FRAGMENT_BUFFER_MAX_LENGTH` | Max number of fragments to keep in the buffer for new pull connections. Default: `10` |
