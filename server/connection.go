@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -47,19 +48,35 @@ type ConnectionHandler struct {
 
 	// Connection current mode
 	mode int
+
+	// Stream ID
+	streamId string
+
+	// HLS source to push to
+	sourceToPush *HlsSource
+
+	// Current fragment to push
+	currentFragmentToPush *HlsFragment
+
+	// Channel to interrupt the pulling process
+	pullingInterruptChannel chan bool
 }
 
 // Creates connection handler
 func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *ConnectionHandler {
 	return &ConnectionHandler{
-		id:              0,
-		connection:      conn,
-		server:          server,
-		mu:              &sync.Mutex{},
-		lastSentMessage: time.Now().UnixMilli(),
-		closed:          false,
-		expectedBinary:  false,
-		mode:            0,
+		id:                      0,
+		connection:              conn,
+		server:                  server,
+		mu:                      &sync.Mutex{},
+		lastSentMessage:         time.Now().UnixMilli(),
+		closed:                  false,
+		expectedBinary:          false,
+		mode:                    0,
+		streamId:                "",
+		sourceToPush:            nil,
+		currentFragmentToPush:   nil,
+		pullingInterruptChannel: nil,
 	}
 }
 
@@ -86,7 +103,20 @@ func (ch *ConnectionHandler) onClose() {
 
 	ch.mu.Unlock()
 
-	// TODO
+	// Clear
+
+	if ch.mode == CONNECTION_MODE_PUSH {
+		if ch.sourceToPush != nil {
+			ch.sourceToPush.Close()
+			ch.sourceToPush = nil
+		}
+
+		ch.server.sourceController.RemoveSource(ch.streamId)
+	} else if ch.mode == CONNECTION_MODE_PULL {
+		if ch.pullingInterruptChannel != nil {
+			ch.pullingInterruptChannel <- true
+		}
+	}
 }
 
 // Runs connection handler
@@ -173,7 +203,9 @@ func (ch *ConnectionHandler) ReadTextMessage() bool {
 	case "PUSH":
 		return ch.HandlePush(parsedMessage)
 	case "F":
+		return ch.HandleFragmentMetadata(parsedMessage)
 	case "CLOSE":
+		return ch.HandleClose()
 	}
 
 	if ch.mode == 0 {
@@ -186,6 +218,11 @@ func (ch *ConnectionHandler) ReadTextMessage() bool {
 
 // Reads binary message and handles it
 func (ch *ConnectionHandler) ReadBinaryMessage() bool {
+	if ch.currentFragmentToPush == nil || ch.sourceToPush == nil {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Unexpected binary message")
+		return false
+	}
+
 	ch.connection.SetReadLimit(ch.server.config.MaxBinaryMessageSize)
 
 	mt, message, err := ch.connection.ReadMessage()
@@ -200,11 +237,17 @@ func (ch *ConnectionHandler) ReadBinaryMessage() bool {
 		return false
 	}
 
-	// TODO
-
 	if len(message) == 0 {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Unexpected empty binary message")
 		return false
 	}
+
+	ch.currentFragmentToPush.Data = message
+
+	ch.sourceToPush.AddFragment(ch.currentFragmentToPush)
+
+	ch.expectedBinary = false
+	ch.currentFragmentToPush = nil
 
 	return true
 }
@@ -292,6 +335,39 @@ func (ch *ConnectionHandler) SendWithBinary(msg *WebsocketProtocolMessage, binar
 	ch.lastSentMessage = time.Now().UnixMilli()
 }
 
+// Sends a close message and closes the connection
+func (ch *ConnectionHandler) SendClose() {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	if ch.closed {
+		return
+	}
+
+	msg := WebsocketProtocolMessage{
+		MessageType: "CLOSE",
+	}
+
+	if log_debug_enabled {
+		ch.LogDebug(">>> " + msg.Serialize())
+	}
+
+	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	ch.connection.Close()
+
+	ch.lastSentMessage = time.Now().UnixMilli()
+}
+
+// Sends a fragment
+func (ch *ConnectionHandler) SendFragment(frag *HlsFragment) {
+	ch.SendWithBinary(&WebsocketProtocolMessage{
+		MessageType: "F",
+		Parameters: map[string]string{
+			"duration": fmt.Sprint(frag.Duration),
+		},
+	}, frag.Data)
+}
+
 // Handles the PULL message
 func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 	if ch.mode != 0 {
@@ -323,19 +399,53 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 		return false
 	}
 
-	// onlySource := msg.GetParameter("only_source") == "true"
+	//onlySource := msg.GetParameter("only_source") == "true"
+	maxInitialFragments := -1
 
-	// TODO PULL the stream
+	maxInitialFragmentsStr := msg.GetParameter("max_initial_fragments")
+	if maxInitialFragmentsStr != "" {
+		n, err := strconv.Atoi(maxInitialFragmentsStr)
 
-	// Switch mode
-	ch.mode = CONNECTION_MODE_PULL
+		if err != nil {
+			ch.SendErrorMessage("PROTOCOL_ERROR", "max_initial_fragments must be a valid integer number")
+			return false
+		}
 
-	// Send OK
+		maxInitialFragments = n
+	}
+
+	// Create interrupt channel
+	ch.pullingInterruptChannel = make(chan bool)
+
+	// PULL the stream
+
+	if ch.server.authController.IsPushAllowed() {
+		source := ch.server.sourceController.GetSource(streamId)
+
+		if source != nil {
+			// Send OK
+			ch.Send(&WebsocketProtocolMessage{
+				MessageType: "OK",
+			})
+
+			// Pull
+			go ch.PullFromHlsSource(source, ch.pullingInterruptChannel, maxInitialFragments)
+
+			return true
+		}
+	}
+
+	// If not found in any place, send OK and CLOSE (Empty stream)
+
 	ch.Send(&WebsocketProtocolMessage{
 		MessageType: "OK",
 	})
 
-	return true
+	ch.Send(&WebsocketProtocolMessage{
+		MessageType: "CLOSE",
+	})
+
+	return false
 }
 
 // Handles the PUSH message
@@ -357,6 +467,8 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 		return false
 	}
 
+	// Check auth
+
 	authToken := msg.GetParameter("auth")
 
 	if authToken == "" {
@@ -369,9 +481,19 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 		return false
 	}
 
-	// TODO PULL the stream
+	// Create source
+
+	hlsSource := ch.server.sourceController.CreateSource(streamId)
+
+	if hlsSource == nil {
+		ch.SendErrorMessage("PUSH_ERROR", "There is already another connection pushing an stream with the same identifier. Please, choose another one.")
+		return false
+	}
+
+	ch.sourceToPush = hlsSource
 
 	// Switch mode
+	ch.streamId = streamId
 	ch.mode = CONNECTION_MODE_PUSH
 
 	// Send OK
@@ -380,4 +502,61 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 	})
 
 	return true
+}
+
+func (ch *ConnectionHandler) HandleFragmentMetadata(msg *WebsocketProtocolMessage) bool {
+	if ch.mode != CONNECTION_MODE_PUSH {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "A fragment message can only be sent in PUSH mode")
+		return false
+	}
+
+	durationStr := msg.GetParameter("duration")
+
+	if durationStr == "" {
+		ch.SendErrorMessage("FRAGMENT_METADATA_ERROR", "The fragment duration must be provided")
+		return false
+	}
+
+	duration, err := strconv.ParseFloat(durationStr, 32)
+
+	if err != nil {
+		ch.SendErrorMessage("FRAGMENT_METADATA_ERROR", "The fragment duration is not a valid floating point number")
+		return false
+	}
+
+	if duration <= 0 {
+		ch.SendErrorMessage("FRAGMENT_METADATA_ERROR", "The fragment duration must be positive")
+		return false
+	}
+
+	ch.currentFragmentToPush = &HlsFragment{
+		Duration: float32(duration),
+	}
+
+	ch.expectedBinary = true
+
+	return true
+}
+
+func (ch *ConnectionHandler) HandleClose() bool {
+	if ch.mode != CONNECTION_MODE_PUSH {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "A close message can only be sent in PUSH mode")
+		return false
+	}
+
+	if ch.sourceToPush == nil {
+		ch.SendErrorMessage("PROTOCOL_ERROR", "Unexpected close message")
+		return false
+	}
+
+	ch.sourceToPush.Close()
+	ch.sourceToPush = nil
+
+	ch.server.sourceController.RemoveSource(ch.streamId)
+
+	ch.streamId = ""
+
+	ch.mode = 0
+
+	return false // After this message, the connection will be closed
 }

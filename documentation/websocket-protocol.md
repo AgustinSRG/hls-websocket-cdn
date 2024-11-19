@@ -73,6 +73,7 @@ The pull message type is `PULL`, with the following parameters:
  - `stream` - Identifier of the stream. Can be any string, with a max length of 255 characters. Usually has the following structure `{ROOM}/{STREAM_ID}/{WIDTH}x{HEIGHT}-{FPS}~{BITRATE}`
  - `auth` - Authentication token. See the [authentication token specification](./authentication.md).
  - `only_source` - Optional. Set it to `true` in order to ensure the node does not relay the stream pull to other node.
+ - `max_initial_fragments` - Optional. Max number of initial fragments to receive.
 
 ```
 PULL:stream=stream-id&auth=auth-token
