@@ -4,6 +4,7 @@
 /server.exe
 *.exe
 
-# Configuration
+# Env
 
 .env
+.env.example

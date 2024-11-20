@@ -399,7 +399,7 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 		return false
 	}
 
-	//onlySource := msg.GetParameter("only_source") == "true"
+	onlySource := msg.GetParameter("only_source") == "true"
 	maxInitialFragments := -1
 
 	maxInitialFragmentsStr := msg.GetParameter("max_initial_fragments")
@@ -430,6 +430,22 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 
 			// Pull
 			go ch.PullFromHlsSource(source, ch.pullingInterruptChannel, maxInitialFragments)
+
+			return true
+		}
+	}
+
+	if !onlySource {
+		relay := ch.server.relayController.RelayStream(streamId)
+
+		if relay != nil {
+			// Send OK
+			ch.Send(&WebsocketProtocolMessage{
+				MessageType: "OK",
+			})
+
+			// Pull
+			go ch.PullFromHlsRelay(relay, ch.pullingInterruptChannel, maxInitialFragments)
 
 			return true
 		}

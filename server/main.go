@@ -8,6 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Default max size (in bytes) for binary messages
+const DEFAULT_MAX_BINARY_MSG_SIZE = 50 * 1024 * 1024
+
+// Main
 func main() {
 	godotenv.Load() // Load env vars
 
@@ -60,6 +64,14 @@ func main() {
 		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
 	})
 
+	// Relay controller
+	relayController := NewRelayController(RelayControllerConfig{
+		RelayFromUrl:            GetEnvString("RELAY_FROM_URL", ""),
+		RelayFromEnabled:        GetEnvBool("RELAY_FROM_ENABLED", false),
+		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+		MaxBinaryMessageSize:    GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+	}, authController, publishRegistry)
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
@@ -75,8 +87,8 @@ func main() {
 		TlsCheckReloadSeconds: GetEnvInt("TLS_CHECK_RELOAD_SECONDS", 60),
 		// Other config
 		WebsocketPrefix:      GetEnvString("WEBSOCKET_PREFIX", "/"),
-		MaxBinaryMessageSize: GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", 50*1024*1024),
-	}, authController, sourcesController, publishRegistry)
+		MaxBinaryMessageSize: GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+	}, authController, sourcesController, relayController)
 
 	// Run server
 

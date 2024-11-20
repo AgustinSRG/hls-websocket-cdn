@@ -98,6 +98,13 @@ You can configure the server using environment variables.
 | `PUB_REG_REDIS_USE_TLS`            | Can be `YES` or `NO`. Set it to `YES` in order to use TLS to connect to Redis.       |
 | `PUB_REG_REFRESH_INTERVAL_SECONDS` | Number of seconds to refresh publish registry entries. Default `60` seconds.         |
 
+### Relay
+
+| Variable             | Description                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `RELAY_FROM_ENABLED` | Can be `YES` or `NO`. Set it to `YES` to enable relaying streams from another server. |
+| `RELAY_FROM_URL`     | Websocket URL of another server to relay HLS streams from.                            |
+
 ### Authentication
 
 | Variable       | Description                                                                    |

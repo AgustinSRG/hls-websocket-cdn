@@ -16,6 +16,20 @@ func (ch *ConnectionHandler) PullFromHlsSource(source *HlsSource, pullingInterru
 	ch.PullStream(listenChan, pullingInterruptChannel, initialFragments, maxInitialFragments)
 }
 
+// Pulls HLS stream from HLS relay
+func (ch *ConnectionHandler) PullFromHlsRelay(relay *HlsRelay, pullingInterruptChannel chan bool, maxInitialFragments int) {
+	listenSuccess, listenChan, initialFragments := relay.AddListener(ch.id)
+
+	if !listenSuccess {
+		ch.SendClose()
+		return
+	}
+
+	defer relay.RemoveListener(ch.id)
+
+	ch.PullStream(listenChan, pullingInterruptChannel, initialFragments, maxInitialFragments)
+}
+
 // Pull stream from events channel and initial fragments list
 func (ch *ConnectionHandler) PullStream(listenChan chan HlsEvent, pullingInterruptChannel chan bool, initialFragments []*HlsFragment, maxInitialFragments int) {
 	// Send initial fragments
