@@ -2,7 +2,10 @@
 
 package main
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // HLS fragment
 type HlsFragment struct {
@@ -36,6 +39,12 @@ type HlsSource struct {
 	// Mutex
 	mu *sync.Mutex
 
+	// Stream ID
+	streamId string
+
+	// Controller
+	controller *SourcesController
+
 	// Map of listeners
 	listeners map[uint64]*HlsSourceListener
 
@@ -47,16 +56,52 @@ type HlsSource struct {
 
 	// Max length of the fragment buffer
 	fragmentBufferMaxLength int
+
+	// Channel to interrupt the announcing thread
+	announceInterruptChannel chan bool
 }
 
 // Creates new instance of HlsSource
-func NewHlsSource(fragmentBufferMaxLength int) *HlsSource {
+func NewHlsSource(controller *SourcesController, streamId string, fragmentBufferMaxLength int) *HlsSource {
 	return &HlsSource{
-		mu:                      &sync.Mutex{},
-		listeners:               make(map[uint64]*HlsSourceListener),
-		closed:                  false,
-		fragmentBuffer:          make([]*HlsFragment, 0),
-		fragmentBufferMaxLength: fragmentBufferMaxLength,
+		mu:                       &sync.Mutex{},
+		controller:               controller,
+		listeners:                make(map[uint64]*HlsSourceListener),
+		closed:                   false,
+		fragmentBuffer:           make([]*HlsFragment, 0),
+		fragmentBufferMaxLength:  fragmentBufferMaxLength,
+		announceInterruptChannel: make(chan bool),
+	}
+}
+
+// Periodically announces the source
+func (source *HlsSource) PeriodicallyAnnounce() {
+	if source.controller.publishRegistry == nil {
+		return
+	}
+
+	intervalSeconds := source.controller.publishRegistry.config.PublishRefreshIntervalSeconds
+
+	for {
+		select {
+		case <-time.After(time.Duration(intervalSeconds) * time.Second):
+			source.Announce()
+		case <-source.announceInterruptChannel:
+			return
+		}
+	}
+}
+
+// Announces source to the publish registry
+func (source *HlsSource) Announce() {
+	if source.controller.publishRegistry == nil {
+		return
+	}
+
+	err := source.controller.publishRegistry.AnnouncePublishedStream(source.streamId)
+
+	if err != nil {
+		LogError(err, "Error publishing stream source")
 	}
 }
 
@@ -114,6 +159,8 @@ func (source *HlsSource) Close() {
 
 	source.listeners = nil
 	source.closed = true
+
+	source.announceInterruptChannel <- true
 }
 
 // Adds fragment

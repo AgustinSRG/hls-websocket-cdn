@@ -15,6 +15,9 @@ type SourcesController struct {
 	// Mutex
 	mu *sync.Mutex
 
+	// Publish registry
+	publishRegistry *RedisPublishRegistry
+
 	// Configuration
 	config SourcesControllerConfig
 
@@ -23,11 +26,12 @@ type SourcesController struct {
 }
 
 // Creates new instance of SourcesController
-func NewSourcesController(config SourcesControllerConfig) *SourcesController {
+func NewSourcesController(config SourcesControllerConfig, publishRegistry *RedisPublishRegistry) *SourcesController {
 	return &SourcesController{
-		mu:      &sync.Mutex{},
-		config:  config,
-		sources: make(map[string]*HlsSource),
+		mu:              &sync.Mutex{},
+		config:          config,
+		sources:         make(map[string]*HlsSource),
+		publishRegistry: publishRegistry,
 	}
 }
 
@@ -52,7 +56,7 @@ func (sc *SourcesController) CreateSource(streamId string) *HlsSource {
 		return nil
 	}
 
-	source := NewHlsSource(sc.config.FragmentBufferMaxLength)
+	source := NewHlsSource(sc, streamId, sc.config.FragmentBufferMaxLength)
 
 	sc.sources[streamId] = source
 

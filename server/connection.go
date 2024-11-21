@@ -508,6 +508,9 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 
 	ch.sourceToPush = hlsSource
 
+	hlsSource.Announce()
+	go hlsSource.PeriodicallyAnnounce()
+
 	// Switch mode
 	ch.streamId = streamId
 	ch.mode = CONNECTION_MODE_PUSH

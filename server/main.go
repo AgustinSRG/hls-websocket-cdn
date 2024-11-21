@@ -62,7 +62,7 @@ func main() {
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
-	})
+	}, publishRegistry)
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
