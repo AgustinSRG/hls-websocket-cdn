@@ -40,6 +40,9 @@ type ConnectionHandler struct {
 	// Timestamp: Last time a message was sent to the client
 	lastSentMessage int64
 
+	// Channel to interrupt the heartbeat thread
+	heartbeatInterruptChannel chan bool
+
 	// True if closed
 	closed bool
 
@@ -65,18 +68,19 @@ type ConnectionHandler struct {
 // Creates connection handler
 func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *ConnectionHandler {
 	return &ConnectionHandler{
-		id:                      0,
-		connection:              conn,
-		server:                  server,
-		mu:                      &sync.Mutex{},
-		lastSentMessage:         time.Now().UnixMilli(),
-		closed:                  false,
-		expectedBinary:          false,
-		mode:                    0,
-		streamId:                "",
-		sourceToPush:            nil,
-		currentFragmentToPush:   nil,
-		pullingInterruptChannel: nil,
+		id:                        0,
+		connection:                conn,
+		server:                    server,
+		mu:                        &sync.Mutex{},
+		lastSentMessage:           time.Now().UnixMilli(),
+		heartbeatInterruptChannel: make(chan bool),
+		closed:                    false,
+		expectedBinary:            false,
+		mode:                      0,
+		streamId:                  "",
+		sourceToPush:              nil,
+		currentFragmentToPush:     nil,
+		pullingInterruptChannel:   nil,
 	}
 }
 
@@ -102,6 +106,9 @@ func (ch *ConnectionHandler) onClose() {
 	ch.closed = true
 
 	ch.mu.Unlock()
+
+	// Interrupt heartbeat
+	ch.heartbeatInterruptChannel <- true
 
 	// Clear
 
@@ -264,23 +271,24 @@ func (ch *ConnectionHandler) checkHeartbeatNeeded() bool {
 
 // Task to send HEARTBEAT periodically
 func (ch *ConnectionHandler) sendHeartbeatMessages() {
+	heartbeatInterval := HEARTBEAT_MSG_PERIOD_SECONDS * time.Second
+
 	for {
-		time.Sleep(HEARTBEAT_MSG_PERIOD_SECONDS * time.Second)
+		select {
+		case <-time.After(heartbeatInterval):
+			if !ch.checkHeartbeatNeeded() {
+				continue
+			}
+			// Send heartbeat message
+			msg := WebsocketProtocolMessage{
+				MessageType: "H",
+			}
 
-		if ch.closed {
-			return // Closed
+			ch.Send(&msg)
+
+		case <-ch.heartbeatInterruptChannel:
+			return
 		}
-
-		if !ch.checkHeartbeatNeeded() {
-			continue
-		}
-
-		// Send heartbeat message
-		msg := WebsocketProtocolMessage{
-			MessageType: "H",
-		}
-
-		ch.Send(&msg)
 	}
 }
 

@@ -57,26 +57,30 @@ type HlsRelay struct {
 
 	// Inactivity warning
 	inactivityWarning bool
+
+	// Channel to interrupt the heartbeat thread
+	heartbeatInterruptChannel chan bool
 }
 
 // Creates new instance of HlsRelay
 func NewHlsRelay(controller *RelayController, id uint64, url string, streamId string, fragmentBufferMaxLength int, onlySource bool) *HlsRelay {
 	return &HlsRelay{
-		id:                      id,
-		mu:                      &sync.Mutex{},
-		controller:              controller,
-		url:                     url,
-		streamId:                streamId,
-		onlySource:              onlySource,
-		listeners:               make(map[uint64]*HlsSourceListener),
-		fragmentBuffer:          make([]*HlsFragment, 0),
-		fragmentBufferMaxLength: fragmentBufferMaxLength,
-		closed:                  false,
-		connected:               false,
-		socket:                  nil,
-		currentFragment:         nil,
-		expectedBinary:          false,
-		inactivityWarning:       false,
+		id:                        id,
+		mu:                        &sync.Mutex{},
+		controller:                controller,
+		url:                       url,
+		streamId:                  streamId,
+		onlySource:                onlySource,
+		listeners:                 make(map[uint64]*HlsSourceListener),
+		fragmentBuffer:            make([]*HlsFragment, 0),
+		fragmentBufferMaxLength:   fragmentBufferMaxLength,
+		closed:                    false,
+		connected:                 false,
+		socket:                    nil,
+		currentFragment:           nil,
+		expectedBinary:            false,
+		inactivityWarning:         false,
+		heartbeatInterruptChannel: make(chan bool),
 	}
 }
 
@@ -140,6 +144,8 @@ func (relay *HlsRelay) Close() {
 	relay.listeners = nil
 	relay.closed = true
 	relay.connected = false
+
+	relay.heartbeatInterruptChannel <- true
 }
 
 // Adds fragment
@@ -448,29 +454,32 @@ func (relay *HlsRelay) SendPullMessage(socket *websocket.Conn) error {
 
 // Sends heartbeat messages until the connection gets closed
 func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
+	heartbeatInterval := HEARTBEAT_MSG_PERIOD_SECONDS * time.Second
+
 	for {
-		time.Sleep(HEARTBEAT_MSG_PERIOD_SECONDS * time.Second)
+		select {
+		case <-time.After(heartbeatInterval):
+			// Send heartbeat message
+			msg := WebsocketProtocolMessage{
+				MessageType: "H",
+			}
 
-		if relay.IsClosed() {
+			err := socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+
+			if err != nil {
+				return
+			}
+		case <-relay.heartbeatInterruptChannel:
 			return
 		}
 
-		// Send heartbeat message
-		msg := WebsocketProtocolMessage{
-			MessageType: "H",
-		}
-
-		err := socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
-
-		if err != nil {
+		if relay.checkInactivity() {
 			return
 		}
-
-		relay.checkInactivity()
 	}
 }
 
-func (relay *HlsRelay) checkInactivity() {
+func (relay *HlsRelay) checkInactivity() bool {
 	relay.mu.Lock()
 	defer relay.mu.Lock()
 
@@ -486,9 +495,13 @@ func (relay *HlsRelay) checkInactivity() {
 			relay.listeners = nil
 			relay.closed = true
 			relay.connected = false
+
+			return true
 		} else {
 			relay.LogDebug("Inactivity detected")
 			relay.inactivityWarning = true
 		}
 	}
+
+	return false
 }
