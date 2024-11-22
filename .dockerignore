@@ -1,0 +1,15 @@
+# Compiled
+
+/server/server
+*.exe
+
+# Env
+
+*.env
+*.env.example
+
+# Other
+
+*.bat
+*.sh
+/server/ws.code-workspace

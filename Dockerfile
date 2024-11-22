@@ -4,7 +4,7 @@ FROM golang:alpine
 
 WORKDIR /root
 
-ADD ./ /root/server
+ADD ./server/ /root/server
 
 WORKDIR /root/server
 
@@ -12,7 +12,7 @@ WORKDIR /root/server
 
 RUN go get .
 
-RUN go build .
+RUN go build -ldflags="-s -w" .
 
 # Prepare runner
 
