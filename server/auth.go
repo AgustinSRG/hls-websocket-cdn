@@ -76,6 +76,14 @@ type AuthConfiguration struct {
 
 // Creates new instance of AuthController
 func NewAuthController(config AuthConfiguration) *AuthController {
+	if config.PullSecret == "" {
+		LogWarning("PULL_SECRET is empty. This means authentication is disabled for pulling streams.")
+	}
+
+	if config.PushSecret == "" {
+		LogWarning("PUSH_SECRET is empty. This means authentication is disabled for pushing streams.")
+	}
+
 	return &AuthController{
 		config: config,
 	}
@@ -93,15 +101,24 @@ func (ac *AuthController) IsPushAllowed() bool {
 
 // Validates PULL token
 func (ac *AuthController) ValidatePullToken(token string, streamId string) bool {
+	if ac.config.PullSecret == "" {
+		return true
+	}
 	return validateAuthToken(token, ac.config.PullSecret, "PULL", streamId)
 }
 
 // Creates a PULL token
 func (ac *AuthController) CreatePullToken(streamId string) string {
+	if ac.config.PullSecret == "" {
+		return ""
+	}
 	return signAuthToken(ac.config.PullSecret, "PULL", streamId)
 }
 
 // Validates PUSH token
 func (ac *AuthController) ValidatePushToken(token string, streamId string) bool {
+	if ac.config.PushSecret == "" {
+		return true
+	}
 	return validateAuthToken(token, ac.config.PushSecret, "PUSH", streamId)
 }

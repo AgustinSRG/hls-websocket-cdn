@@ -399,11 +399,6 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 
 	authToken := msg.GetParameter("auth")
 
-	if authToken == "" {
-		ch.SendErrorMessage("AUTH_ERROR", "Auth token cannot be empty")
-		return false
-	}
-
 	if !ch.server.authController.ValidatePullToken(authToken, streamId) {
 		ch.SendErrorMessage("AUTH_ERROR", "Invalid auth token")
 		return false
@@ -496,11 +491,6 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 	// Check auth
 
 	authToken := msg.GetParameter("auth")
-
-	if authToken == "" {
-		ch.SendErrorMessage("AUTH_ERROR", "Auth token cannot be empty")
-		return false
-	}
 
 	if !ch.server.authController.ValidatePushToken(authToken, streamId) {
 		ch.SendErrorMessage("AUTH_ERROR", "Invalid auth token")
