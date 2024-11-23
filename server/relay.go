@@ -409,7 +409,7 @@ func (relay *HlsRelay) ReadBinaryMessage(socket *websocket.Conn) bool {
 		return false
 	}
 
-	if mt != websocket.TextMessage {
+	if mt != websocket.BinaryMessage {
 		relay.SendErrorMessage(socket, "PROTOCOL_ERROR", "Expected binary message, but received a text one")
 		return false
 	}
