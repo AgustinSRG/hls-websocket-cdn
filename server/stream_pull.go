@@ -38,7 +38,7 @@ func (ch *ConnectionHandler) PullStream(listenChan chan HlsEvent, pullingInterru
 		maxInitialFragments = len(initialFragments)
 	}
 
-	for i := 0; i < len(initialFragments) && i < maxInitialFragments; i++ {
+	for i := len(initialFragments) - maxInitialFragments; i < len(initialFragments); i++ {
 		ch.SendFragment(initialFragments[i])
 	}
 
