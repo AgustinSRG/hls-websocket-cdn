@@ -73,7 +73,7 @@ func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *Connecti
 		server:                    server,
 		mu:                        &sync.Mutex{},
 		lastSentMessage:           time.Now().UnixMilli(),
-		heartbeatInterruptChannel: make(chan bool),
+		heartbeatInterruptChannel: make(chan bool, 1),
 		closed:                    false,
 		expectedBinary:            false,
 		mode:                      0,
@@ -107,9 +107,6 @@ func (ch *ConnectionHandler) onClose() {
 
 	ch.mu.Unlock()
 
-	// Interrupt heartbeat
-	ch.heartbeatInterruptChannel <- true
-
 	// Clear
 
 	if ch.mode == CONNECTION_MODE_PUSH {
@@ -119,11 +116,16 @@ func (ch *ConnectionHandler) onClose() {
 		}
 
 		ch.server.sourceController.RemoveSource(ch.streamId)
+
+		ch.LogInfo("Source closed due to connection closed.")
 	} else if ch.mode == CONNECTION_MODE_PULL {
 		if ch.pullingInterruptChannel != nil {
 			ch.pullingInterruptChannel <- true
 		}
 	}
+
+	// Interrupt heartbeat
+	ch.heartbeatInterruptChannel <- true
 }
 
 // Runs connection handler
@@ -139,11 +141,12 @@ func (ch *ConnectionHandler) Run() {
 				ch.LogError(nil, "Connection Crashed!")
 			}
 		}
-		ch.LogInfo("Connection closed.")
 		// Ensure connection is closed
 		ch.connection.Close()
 		// Release resources
 		ch.onClose()
+		// Log
+		ch.LogInfo("Connection closed.")
 	}()
 
 	// Get a connection ID
@@ -239,7 +242,7 @@ func (ch *ConnectionHandler) ReadBinaryMessage() bool {
 		return false
 	}
 
-	if mt != websocket.TextMessage {
+	if mt != websocket.BinaryMessage {
 		ch.SendErrorMessage("PROTOCOL_ERROR", "Expected binary message, but received a text one")
 		return false
 	}
@@ -285,7 +288,6 @@ func (ch *ConnectionHandler) sendHeartbeatMessages() {
 			}
 
 			ch.Send(&msg)
-
 		case <-ch.heartbeatInterruptChannel:
 			return
 		}
@@ -423,7 +425,7 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 	}
 
 	// Create interrupt channel
-	ch.pullingInterruptChannel = make(chan bool)
+	ch.pullingInterruptChannel = make(chan bool, 1)
 
 	// PULL the stream
 

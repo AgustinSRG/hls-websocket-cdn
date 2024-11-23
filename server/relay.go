@@ -80,7 +80,7 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 		currentFragment:           nil,
 		expectedBinary:            false,
 		inactivityWarning:         false,
-		heartbeatInterruptChannel: make(chan bool),
+		heartbeatInterruptChannel: make(chan bool, 1),
 	}
 }
 
@@ -92,7 +92,7 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 // - initialFragments: List of fragments to be sent as initial (they were in the buffer)
 func (relay *HlsRelay) AddListener(id uint64) (success bool, channel chan HlsEvent, initialFragments []*HlsFragment) {
 	lis := &HlsSourceListener{
-		Channel: make(chan HlsEvent),
+		Channel: make(chan HlsEvent, relay.fragmentBufferMaxLength),
 	}
 
 	relay.mu.Lock()
@@ -231,11 +231,12 @@ func (relay *HlsRelay) Run() {
 				LogError(nil, "Relay connection Crashed!")
 			}
 		}
-		relay.LogInfo("Relay connection closed")
 		// Ensure connection is closed
 		relay.socket.Close()
 		// Release resources
 		relay.onClose()
+		// Log
+		relay.LogInfo("Relay connection closed")
 	}()
 
 	relay.LogInfo("Relay created. Url: " + relay.url + " | Stream: " + relay.streamId)

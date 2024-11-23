@@ -70,7 +70,7 @@ func NewHlsSource(controller *SourcesController, streamId string, fragmentBuffer
 		closed:                   false,
 		fragmentBuffer:           make([]*HlsFragment, 0),
 		fragmentBufferMaxLength:  fragmentBufferMaxLength,
-		announceInterruptChannel: make(chan bool),
+		announceInterruptChannel: make(chan bool, 1),
 	}
 }
 
@@ -113,7 +113,7 @@ func (source *HlsSource) Announce() {
 // - initialFragments: List of fragments to be sent as initial (they were in the buffer)
 func (source *HlsSource) AddListener(id uint64) (success bool, channel chan HlsEvent, initialFragments []*HlsFragment) {
 	lis := &HlsSourceListener{
-		Channel: make(chan HlsEvent),
+		Channel: make(chan HlsEvent, source.fragmentBufferMaxLength),
 	}
 
 	source.mu.Lock()
