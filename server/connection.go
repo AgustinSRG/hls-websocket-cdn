@@ -436,6 +436,10 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 			// Pull
 			go ch.PullFromHlsSource(source, ch.pullingInterruptChannel, maxInitialFragments)
 
+			// Switch mode
+			ch.streamId = streamId
+			ch.mode = CONNECTION_MODE_PULL
+
 			return true
 		}
 	}
@@ -451,6 +455,10 @@ func (ch *ConnectionHandler) HandlePull(msg *WebsocketProtocolMessage) bool {
 
 			// Pull
 			go ch.PullFromHlsRelay(relay, ch.pullingInterruptChannel, maxInitialFragments)
+
+			// Switch mode
+			ch.streamId = streamId
+			ch.mode = CONNECTION_MODE_PULL
 
 			return true
 		}
