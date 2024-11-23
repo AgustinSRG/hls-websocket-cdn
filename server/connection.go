@@ -37,9 +37,6 @@ type ConnectionHandler struct {
 	// Mutex for the struct
 	mu *sync.Mutex
 
-	// Timestamp: Last time a message was sent to the client
-	lastSentMessage int64
-
 	// Channel to interrupt the heartbeat thread
 	heartbeatInterruptChannel chan bool
 
@@ -72,7 +69,6 @@ func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *Connecti
 		connection:                conn,
 		server:                    server,
 		mu:                        &sync.Mutex{},
-		lastSentMessage:           time.Now().UnixMilli(),
 		heartbeatInterruptChannel: make(chan bool, 1),
 		closed:                    false,
 		expectedBinary:            false,
@@ -112,10 +108,9 @@ func (ch *ConnectionHandler) onClose() {
 	if ch.mode == CONNECTION_MODE_PUSH {
 		if ch.sourceToPush != nil {
 			ch.sourceToPush.Close()
+			ch.server.sourceController.RemoveSource(ch.streamId, ch.sourceToPush)
 			ch.sourceToPush = nil
 		}
-
-		ch.server.sourceController.RemoveSource(ch.streamId)
 
 		ch.LogInfo("Source closed due to connection closed.")
 	} else if ch.mode == CONNECTION_MODE_PULL {
@@ -262,34 +257,21 @@ func (ch *ConnectionHandler) ReadBinaryMessage() bool {
 	return true
 }
 
-// Checks if a heartbeat message is needed to keep the connection alive
-func (ch *ConnectionHandler) checkHeartbeatNeeded() bool {
-	now := time.Now().UnixMilli()
-
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-
-	return now-ch.lastSentMessage > (HEARTBEAT_MSG_PERIOD_SECONDS * time.Second).Milliseconds()
-}
-
 // Task to send HEARTBEAT periodically
 func (ch *ConnectionHandler) sendHeartbeatMessages() {
 	heartbeatInterval := HEARTBEAT_MSG_PERIOD_SECONDS * time.Second
 
 	for {
 		select {
+		case <-ch.heartbeatInterruptChannel:
+			return
 		case <-time.After(heartbeatInterval):
-			if !ch.checkHeartbeatNeeded() {
-				continue
-			}
 			// Send heartbeat message
 			msg := WebsocketProtocolMessage{
 				MessageType: "H",
 			}
 
 			ch.Send(&msg)
-		case <-ch.heartbeatInterruptChannel:
-			return
 		}
 	}
 }
@@ -321,8 +303,6 @@ func (ch *ConnectionHandler) Send(msg *WebsocketProtocolMessage) {
 	}
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
-
-	ch.lastSentMessage = time.Now().UnixMilli()
 }
 
 // Sends a message to the websocket client with attached binary data
@@ -341,8 +321,6 @@ func (ch *ConnectionHandler) SendWithBinary(msg *WebsocketProtocolMessage, binar
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 	ch.connection.WriteMessage(websocket.BinaryMessage, []byte(binaryData))
-
-	ch.lastSentMessage = time.Now().UnixMilli()
 }
 
 // Sends a close message and closes the connection
@@ -364,8 +342,6 @@ func (ch *ConnectionHandler) SendClose() {
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 	ch.connection.Close()
-
-	ch.lastSentMessage = time.Now().UnixMilli()
 }
 
 // Sends a fragment
@@ -577,9 +553,8 @@ func (ch *ConnectionHandler) HandleClose() bool {
 	}
 
 	ch.sourceToPush.Close()
+	ch.server.sourceController.RemoveSource(ch.streamId, ch.sourceToPush)
 	ch.sourceToPush = nil
-
-	ch.server.sourceController.RemoveSource(ch.streamId)
 
 	ch.streamId = ""
 

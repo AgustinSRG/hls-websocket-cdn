@@ -188,6 +188,9 @@ func (source *HlsSource) AddFragment(frag *HlsFragment) {
 	}
 
 	for _, lis := range source.listeners {
-		lis.Channel <- fragmentEvent
+		select {
+		case lis.Channel <- fragmentEvent:
+		default:
+		}
 	}
 }

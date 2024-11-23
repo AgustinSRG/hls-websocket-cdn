@@ -47,27 +47,34 @@ func (sc *SourcesController) GetSource(streamId string) *HlsSource {
 // Creates a source
 // May return nil if the streamId is already in use
 func (sc *SourcesController) CreateSource(streamId string) *HlsSource {
+	source := NewHlsSource(sc, streamId, sc.config.FragmentBufferMaxLength)
+
 	sc.mu.Lock()
-	defer sc.mu.Unlock()
 
 	existingSource := sc.sources[streamId]
 
-	if existingSource != nil {
-		return nil
-	}
-
-	source := NewHlsSource(sc, streamId, sc.config.FragmentBufferMaxLength)
-
 	sc.sources[streamId] = source
+
+	sc.mu.Unlock()
+
+	if existingSource != nil {
+		existingSource.Close()
+	}
 
 	return source
 }
 
 // Removes a source
 // Must be called only after the source of closed, by the publisher
-func (sc *SourcesController) RemoveSource(streamId string) {
+func (sc *SourcesController) RemoveSource(streamId string, source *HlsSource) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
+
+	existingSource := sc.sources[streamId]
+
+	if existingSource != source {
+		return
+	}
 
 	delete(sc.sources, streamId)
 }

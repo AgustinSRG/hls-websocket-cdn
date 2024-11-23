@@ -459,19 +459,15 @@ func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
 
 	for {
 		select {
+		case <-relay.heartbeatInterruptChannel:
+			return
 		case <-time.After(heartbeatInterval):
 			// Send heartbeat message
 			msg := WebsocketProtocolMessage{
 				MessageType: "H",
 			}
 
-			err := socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
-
-			if err != nil {
-				return
-			}
-		case <-relay.heartbeatInterruptChannel:
-			return
+			socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 		}
 
 		if relay.checkInactivity() {
