@@ -2,4 +2,5 @@
 
 "use strict";
 
-// TODO
+export * from "hls.js";
+export * from "./hls";

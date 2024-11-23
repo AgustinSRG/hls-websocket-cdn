@@ -1,6 +1,6 @@
 {
   "name": "@asanrom/hls-websocket-cdn",
-  "version": "1.0.0",
+  "version": "0.0.3",
   "description": "Javascript client for HLS Websocket CDN.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -48,5 +48,8 @@
     "webpack": "5.96.1",
     "webpack-cli": "5.0.1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "hls.js": "1.5.17"
+  }
 }
