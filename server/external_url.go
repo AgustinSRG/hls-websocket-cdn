@@ -6,18 +6,20 @@ package main
 import (
 	"fmt"
 	"net"
+
+	"github.com/AgustinSRG/genv"
 )
 
 // Figures out the external websocket URL of the server
 // It must be used when publishing to register the server in the publish registry database
 func FigureOutExternalServerWebsocketUrl() string {
-	customExternalWebsocketUrl := GetEnvString("EXTERNAL_WEBSOCKET_URL", "")
+	customExternalWebsocketUrl := genv.GetEnvString("EXTERNAL_WEBSOCKET_URL", "")
 
 	if customExternalWebsocketUrl != "" {
 		return customExternalWebsocketUrl
 	}
 
-	isSecure := GetEnvBool("TLS_ENABLED", false)
+	isSecure := genv.GetEnvBool("TLS_ENABLED", false)
 
 	var proto string
 
@@ -27,13 +29,13 @@ func FigureOutExternalServerWebsocketUrl() string {
 		proto = "ws"
 	}
 
-	port := GetEnvInt("HTTP_PORT", 80)
+	port := genv.GetEnvInt("HTTP_PORT", 80)
 
 	if isSecure {
-		port = GetEnvInt("TLS_PORT", 443)
+		port = genv.GetEnvInt("TLS_PORT", 443)
 	}
 
-	prefix := GetEnvString("WEBSOCKET_PREFIX", "/")
+	prefix := genv.GetEnvString("WEBSOCKET_PREFIX", "/")
 
 	networkInterfaces, err := net.Interfaces()
 

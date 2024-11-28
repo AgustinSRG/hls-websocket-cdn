@@ -8,5 +8,12 @@
         "files.exclude": {
             "*.exe": true,
         },
+        "cSpell.words": [
+            "asanrom",
+            "genv",
+            "github",
+            "godotenv",
+            "joho"
+        ],
     }
 }

@@ -5,6 +5,7 @@ package main
 import (
 	"sync"
 
+	"github.com/AgustinSRG/genv"
 	"github.com/joho/godotenv"
 )
 
@@ -16,8 +17,8 @@ func main() {
 	godotenv.Load() // Load env vars
 
 	// Configure logs
-	SetDebugLogEnabled(GetEnvBool("LOG_DEBUG", false))
-	SetInfoLogEnabled(GetEnvBool("LOG_INFO", true))
+	SetDebugLogEnabled(genv.GetEnvBool("LOG_DEBUG", false))
+	SetInfoLogEnabled(genv.GetEnvBool("LOG_INFO", true))
 
 	// External URL
 	externalWebsocketUrl := FigureOutExternalServerWebsocketUrl()
@@ -31,14 +32,14 @@ func main() {
 	// Publish registry
 	var publishRegistry *RedisPublishRegistry = nil
 
-	if GetEnvBool("PUB_REG_REDIS_ENABLED", false) {
+	if genv.GetEnvBool("PUB_REG_REDIS_ENABLED", false) {
 		pr, err := NewRedisPublishRegistry(RedisPublishRegistryConfig{
-			Host:                          GetEnvString("PUB_REG_REDIS_HOST", "127.0.0.1"),
-			Port:                          GetEnvInt("PUB_REG_REDIS_PORT", 6379),
-			Password:                      GetEnvString("PUB_REG_REDIS_PASSWORD", ""),
-			UseTls:                        GetEnvBool("PUB_REG_REDIS_USE_TLS", false),
+			Host:                          genv.GetEnvString("PUB_REG_REDIS_HOST", "127.0.0.1"),
+			Port:                          genv.GetEnvInt("PUB_REG_REDIS_PORT", 6379),
+			Password:                      genv.GetEnvString("PUB_REG_REDIS_PASSWORD", ""),
+			UseTls:                        genv.GetEnvBool("PUB_REG_REDIS_USE_TLS", false),
 			ExternalWebsocketUrl:          externalWebsocketUrl,
-			PublishRefreshIntervalSeconds: GetEnvInt("PUB_REG_REFRESH_INTERVAL_SECONDS", 60),
+			PublishRefreshIntervalSeconds: genv.GetEnvInt("PUB_REG_REFRESH_INTERVAL_SECONDS", 60),
 		})
 
 		if err != nil {
@@ -54,40 +55,40 @@ func main() {
 
 	// Auth
 	authController := NewAuthController(AuthConfiguration{
-		PullSecret: GetEnvString("PULL_SECRET", ""),
-		PushSecret: GetEnvString("PUSH_SECRET", ""),
-		AllowPush:  GetEnvBool("PUSH_ALLOWED", true),
+		PullSecret: genv.GetEnvString("PULL_SECRET", ""),
+		PushSecret: genv.GetEnvString("PUSH_SECRET", ""),
+		AllowPush:  genv.GetEnvBool("PUSH_ALLOWED", true),
 	})
 
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
-		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
 	}, publishRegistry)
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
-		RelayFromUrl:            GetEnvString("RELAY_FROM_URL", ""),
-		RelayFromEnabled:        GetEnvBool("RELAY_FROM_ENABLED", false),
-		FragmentBufferMaxLength: GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
-		MaxBinaryMessageSize:    GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+		RelayFromUrl:            genv.GetEnvString("RELAY_FROM_URL", ""),
+		RelayFromEnabled:        genv.GetEnvBool("RELAY_FROM_ENABLED", false),
+		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 	}, authController, publishRegistry)
 
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
-		HttpEnabled:  GetEnvBool("HTTP_ENABLED", true),
-		InsecurePort: GetEnvInt("HTTP_PORT", 80),
-		BindAddress:  GetEnvString("HTTP_BIND_ADDRESS", ""),
+		HttpEnabled:  genv.GetEnvBool("HTTP_ENABLED", true),
+		InsecurePort: genv.GetEnvInt("HTTP_PORT", 80),
+		BindAddress:  genv.GetEnvString("HTTP_BIND_ADDRESS", ""),
 		// TLS
-		TlsEnabled:            GetEnvBool("TLS_ENABLED", false),
-		TlsPort:               GetEnvInt("TLS_PORT", 443),
-		TlsBindAddress:        GetEnvString("TLS_BIND_ADDRESS", ""),
-		TlsCertificateFile:    GetEnvString("TLS_CERTIFICATE", ""),
-		TlsPrivateKeyFile:     GetEnvString("TLS_PRIVATE_KEY", ""),
-		TlsCheckReloadSeconds: GetEnvInt("TLS_CHECK_RELOAD_SECONDS", 60),
+		TlsEnabled:            genv.GetEnvBool("TLS_ENABLED", false),
+		TlsPort:               genv.GetEnvInt("TLS_PORT", 443),
+		TlsBindAddress:        genv.GetEnvString("TLS_BIND_ADDRESS", ""),
+		TlsCertificateFile:    genv.GetEnvString("TLS_CERTIFICATE", ""),
+		TlsPrivateKeyFile:     genv.GetEnvString("TLS_PRIVATE_KEY", ""),
+		TlsCheckReloadSeconds: genv.GetEnvInt("TLS_CHECK_RELOAD_SECONDS", 60),
 		// Other config
-		WebsocketPrefix:      GetEnvString("WEBSOCKET_PREFIX", "/"),
-		MaxBinaryMessageSize: GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+		WebsocketPrefix:      genv.GetEnvString("WEBSOCKET_PREFIX", "/"),
+		MaxBinaryMessageSize: genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 	}, authController, sourcesController, relayController)
 
 	// Run server
