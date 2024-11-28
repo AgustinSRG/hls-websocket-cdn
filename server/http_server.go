@@ -166,6 +166,7 @@ func (server *HttpServer) RunTls(wg *sync.WaitGroup) {
 
 	if err != nil {
 		LogError(err, "Error starting HTTPS server")
+		return
 	}
 
 	go certificateLoader.RunReloadThread()
