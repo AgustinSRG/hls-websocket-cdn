@@ -1,6 +1,6 @@
-# HLS Websocket CDN - Server
+# HLS WebSocket CDN - Server
 
-This the main backend component for **HLS Websocket CDN**, implemented in golang.
+This the main backend component for **HLS WebSocket CDN**, implemented in golang.
 
 ## Compilation
 
@@ -44,10 +44,6 @@ services:
       - LOG_INFO=YES
       - LOG_DEBUG=NO
 ```
-
-## Health check
-
-You can check for the server health by sending an `HTTP GET` request to any other path that is not the websocket path. The server will return a `200 OK` response with the body `OK - HLS Websocket CDN`.
 
 ## Configuration
 
@@ -118,3 +114,7 @@ You can configure the server using environment variables.
 | Variable                     | Description                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------- |
 | `FRAGMENT_BUFFER_MAX_LENGTH` | Max number of fragments to keep in the buffer for new pull connections. Default: `10` |
+
+## Health check
+
+You can check for the server health by sending an `HTTP GET` request to any other path that is not the websocket path. The server will return a `200 OK` response with the body `OK - HLS Websocket CDN`.
