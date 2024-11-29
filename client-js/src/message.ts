@@ -1,9 +1,9 @@
-// Websocket message
+// WebSocket message
 
 "use strict";
 
-// CDN Websocket message
-export interface CdnWebsocketMessage {
+// CDN WebSocket message
+export interface CdnWebSocketMessage {
     // Message type (uppercase)
     type: string;
 
@@ -16,7 +16,7 @@ export interface CdnWebsocketMessage {
  * @param msg The message
  * @returns The serialized message
  */
-export function serializeCdnWebsocketMessage(msg: CdnWebsocketMessage): string {
+export function serializeCdnWebSocketMessage(msg: CdnWebSocketMessage): string {
     let paramStr = "";
 
     if (msg.parameters && msg.parameters.size > 0) {
@@ -37,7 +37,7 @@ export function serializeCdnWebsocketMessage(msg: CdnWebsocketMessage): string {
  * @param msg The string message
  * @returns The parsed message
  */
-export function parseCdnWebsocketMessage(msg: string): CdnWebsocketMessage {
+export function parseCdnWebSocketMessage(msg: string): CdnWebSocketMessage {
     const msgParts = msg.split(":");
 
     const msgType = (msgParts[0] || "").toUpperCase();

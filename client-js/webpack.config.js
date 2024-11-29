@@ -7,7 +7,7 @@ module.exports = {
     output: {
         filename: "hls-websocket-cdn.js",
         path: path.resolve(__dirname, 'dist.webpack'),
-        library: "HlsWebsocketCdn",
+        library: "HlsWebSocketCdn",
     },
     resolve: {
         extensions: [".webpack.js", ".web.js", ".ts", ".js"],

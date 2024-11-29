@@ -3,14 +3,14 @@
 "use strict";
 
 import Hls, { type HlsConfig } from "hls.js";
-import { type HlsWebsocketCdnClientOptions } from "./options";
+import { type HlsWebSocketCdnClientOptions } from "./options";
 import { getLoaderClass } from "./loader";
-import { HlsWebsocketCdnClient } from "./client";
+import { HlsWebSocketCdnClient } from "./client";
 
 /**
- * Extension of HLS.js to pull streams from HLS Websocket CDN
+ * Extension of HLS.js to pull streams from HLS WebSocket CDN
  */
-export class HlsWebsocket extends Hls {
+export class HlsWebSocket extends Hls {
     /**
      * Checks if MSE is supported (required for this library to work)
      * If not supported, you may use regular HLS instead
@@ -21,15 +21,15 @@ export class HlsWebsocket extends Hls {
     }
 
     // Client
-    private wsCdnClient: HlsWebsocketCdnClient;
+    private wsCdnClient: HlsWebSocketCdnClient;
 
     /**
-     * Constructor. Creates instance of HlsWebsocket
-     * @param options HLS Websocket CDN options
+     * Constructor. Creates instance of HlsWebSocket
+     * @param options HLS WebSocket CDN options
      * @param hlsConfig Base HLS configuration for HLS.js
      */
-    constructor(options: HlsWebsocketCdnClientOptions, hlsConfig?: Partial<HlsConfig>) {
-        const client = new HlsWebsocketCdnClient(options);
+    constructor(options: HlsWebSocketCdnClientOptions, hlsConfig?: Partial<HlsConfig>) {
+        const client = new HlsWebSocketCdnClient(options);
 
         super({
             ...(hlsConfig || {}),

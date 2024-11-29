@@ -1,19 +1,19 @@
-# HLS Websocket CDN - Websocket Protocol
+# HLS WebSocket CDN - WebSocket Protocol
 
 This document is a specification of the protocol that must be followed in order to interact with the hls-websocket-cdn nodes.
 
-The protocol works on top of the [Websocket Protocol](https://datatracker.ietf.org/doc/html/rfc6455). The clients, or other nodes, will connect to the node via websocket, at the root path. Examples:
+The protocol works on top of the [WebSocket Protocol](https://datatracker.ietf.org/doc/html/rfc6455). The clients, or other nodes, will connect to the node via websocket, at the root path. Examples:
 
 ```
 ws://example-host/
 wss://example-host/
 ```
 
-The default port for TLS Websocket (`wss`) is `443`. The default port for insecure websocket (`ws`) is `80`. The ports can be changed by the node configuration. The client needs to know them in order to connect to the nodes.
+The default port for TLS WebSocket (`wss`) is `443`. The default port for insecure websocket (`ws`) is `80`. The ports can be changed by the node configuration. The client needs to know them in order to connect to the nodes.
 
 ## Message format
 
-The Websocket protocol allow for 2 types of messages: Text messages and binary messages.
+The WebSocket protocol allow for 2 types of messages: Text messages and binary messages.
 
 The text messages must follow the following structure: The message type (which can only contain letters or numbers), followed by a colon character (`:`) and, optionally, followed by a [query string](https://en.wikipedia.org/wiki/Query_string) with the message parameters. Example:
 

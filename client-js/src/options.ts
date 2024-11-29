@@ -3,7 +3,7 @@
 "use strict";
 
 // Options of the HLS websocket CDN client
-export interface HlsWebsocketCdnClientOptions {
+export interface HlsWebSocketCdnClientOptions {
     /**
      * URL to connect to the CDN server
      */

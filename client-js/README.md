@@ -1,6 +1,6 @@
-# HLS Websocket CDN - Javascript client
+# HLS WebSocket CDN - Javascript client
 
-This is a JavaScript client for **HLS Websocket CDN**. You can use it in order to connect to the CDN servers and play the streams from a web browser.
+This is a JavaScript client for **HLS WebSocket CDN**. You can use it in order to connect to the CDN servers and play the streams from a web browser.
 
 This client is built on top of [HLS.js](https://github.com/video-dev/hls.js).
 
@@ -18,7 +18,7 @@ If you are using it in the browser, without any bundler, download the minified f
 <script type="text/javascript" src="/path/to/hls-websocket-cdn.js"></script>
 ```
 
-The browser library exports all artifacts to the window global: `HlsWebsocketCdn`
+The browser library exports all artifacts to the window global: `HlsWebSocketCdn`
 
 ## Usage
 
@@ -31,7 +31,7 @@ Here is an example:
 <script type="text/javascript" src="/path/to/hls-websocket-cdn.js"></script>
 <video id="video"></video>
 <script>
-    const HlsWebsocket = HlsWebsocketCdn.HlsWebsocket;
+    const HlsWebSocket = HlsWebSocketCdn.HlsWebSocket;
 
     var video = document.getElementById('video');
     var cdnUrl = "wss://ws.example.com/";
@@ -40,9 +40,9 @@ Here is an example:
     var fallbackHlsUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
     // Check if MSE are supported
-    if (HlsWebsocket.isSupported()) {
-        // Create instance of HlsWebsocket
-        var hls = new HlsWebsocket({
+    if (HlsWebSocket.isSupported()) {
+        // Create instance of HlsWebSocket
+        var hls = new HlsWebSocket({
             cdnServerUrl: cdnUrl,
             streamId: cdnStreamId,
 

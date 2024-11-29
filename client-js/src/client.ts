@@ -2,13 +2,13 @@
 
 "use strict";
 
-import { type CdnWebsocketMessage, parseCdnWebsocketMessage, serializeCdnWebsocketMessage } from "./message";
-import { type HlsWebsocketCdnClientOptions } from "./options";
+import { type CdnWebSocketMessage, parseCdnWebSocketMessage, serializeCdnWebSocketMessage } from "./message";
+import { type HlsWebSocketCdnClientOptions } from "./options";
 
 /**
  * Error state for the client
  */
-export type HlsWebsocketCdnClientErrorState = "error-timeout" | "error-auth";
+export type HlsWebSocketCdnClientErrorState = "error-timeout" | "error-auth";
 
 const HEARTBEAT_PERIOD = 30 * 1000;
 
@@ -17,7 +17,7 @@ const RECONNECT_DELAY = 1000;
 /**
  * Callback to receive a playlist
  */
-export type PlaylistRequestCallback = (err: HlsWebsocketCdnClientErrorState | null, playlist: string) => void;
+export type PlaylistRequestCallback = (err: HlsWebSocketCdnClientErrorState | null, playlist: string) => void;
 
 /**
  * Fragment of the playlist
@@ -42,11 +42,11 @@ export interface PlaylistFragment {
 /**
  * HLS websocket CDN client
  */
-export class HlsWebsocketCdnClient {
+export class HlsWebSocketCdnClient {
     /**
      * Client options
      */
-    private options: HlsWebsocketCdnClientOptions;
+    private options: HlsWebSocketCdnClientOptions;
 
     /**
      * True if the client is closed
@@ -56,10 +56,10 @@ export class HlsWebsocketCdnClient {
     /**
      * Error state of the client
      */
-    private error: HlsWebsocketCdnClientErrorState | null;
+    private error: HlsWebSocketCdnClientErrorState | null;
 
     /**
-     * Websocket used for the connection to the server
+     * WebSocket used for the connection to the server
      */
     private ws: WebSocket | null;
 
@@ -124,10 +124,10 @@ export class HlsWebsocketCdnClient {
     private playlistListeners: Map<number, PlaylistRequestCallback>;
 
     /**
-     * Constructor. Creates instance of HlsWebsocketCdnClient
+     * Constructor. Creates instance of HlsWebSocketCdnClient
      * @param options The client options.
      */
-    constructor(options: HlsWebsocketCdnClientOptions) {
+    constructor(options: HlsWebSocketCdnClientOptions) {
         this.options = options;
         this.closed = false;
         this.error = null;
@@ -194,7 +194,7 @@ export class HlsWebsocketCdnClient {
             } else {
                 // Text
 
-                const parsedMessage = parseCdnWebsocketMessage(ev.data + "");
+                const parsedMessage = parseCdnWebSocketMessage(ev.data + "");
 
                 switch (parsedMessage.type) {
                     case "E":
@@ -245,7 +245,7 @@ export class HlsWebsocketCdnClient {
             return;
         }
 
-        this.ws.send(serializeCdnWebsocketMessage({
+        this.ws.send(serializeCdnWebSocketMessage({
             type: "PULL",
             parameters: new Map([
                 ["stream", this.options.streamId],
@@ -263,7 +263,7 @@ export class HlsWebsocketCdnClient {
             return;
         }
 
-        this.ws.send(serializeCdnWebsocketMessage({
+        this.ws.send(serializeCdnWebSocketMessage({
             type: "H",
         }));
 
@@ -277,7 +277,7 @@ export class HlsWebsocketCdnClient {
      * Receives a fragment metadata message
      * @param msg The message
      */
-    private receiveFragmentMetadata(msg: CdnWebsocketMessage) {
+    private receiveFragmentMetadata(msg: CdnWebSocketMessage) {
         const durationStr = msg.parameters ? msg.parameters.get("duration") : "";
 
         if (!durationStr) {
@@ -467,7 +467,7 @@ export class HlsWebsocketCdnClient {
      * Closes the client
      * @param error 
      */
-    public close(error?: HlsWebsocketCdnClientErrorState) {
+    public close(error?: HlsWebSocketCdnClientErrorState) {
         if (error) {
             this.error = error;
         }

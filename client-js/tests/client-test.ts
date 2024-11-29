@@ -6,7 +6,7 @@ require('dotenv').config();
 
 // import assert from "assert";
 
-describe("HLS Websocket CDN javascript client", () => {
+describe("HLS WebSocket CDN javascript client", () => {
     it('TODO', async () => {
         // TODO: Implement tests
     });

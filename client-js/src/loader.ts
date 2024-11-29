@@ -3,8 +3,8 @@
 "use strict";
 
 import { type HlsConfig, type Loader, type LoaderCallbacks, type LoaderConfiguration, type LoaderContext, type LoaderStats } from "hls.js";
-import { HlsWebsocketCdnClient } from "./client";
-import { type HlsWebsocketCdnClientOptions } from "./options";
+import { HlsWebSocketCdnClient } from "./client";
+import { type HlsWebSocketCdnClientOptions } from "./options";
 
 function getEmptyLoadStats(): LoaderStats {
     return {
@@ -20,11 +20,11 @@ function getEmptyLoadStats(): LoaderStats {
     };
 }
 
-export function getLoaderClass(client: HlsWebsocketCdnClient, options: HlsWebsocketCdnClientOptions) {
-    return class HlsWebsocketCdnCustomLoader implements Loader<LoaderContext> {
+export function getLoaderClass(client: HlsWebSocketCdnClient, options: HlsWebSocketCdnClientOptions) {
+    return class HlsWebSocketCdnCustomLoader implements Loader<LoaderContext> {
         public config: HlsConfig;
-        public client: HlsWebsocketCdnClient;
-        public options: HlsWebsocketCdnClientOptions;
+        public client: HlsWebSocketCdnClient;
+        public options: HlsWebSocketCdnClientOptions;
 
         public context: LoaderContext | null;
         public stats: LoaderStats;

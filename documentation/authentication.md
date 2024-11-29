@@ -1,8 +1,8 @@
-# HLS Websocket CDN - Authentication
+# HLS WebSocket CDN - Authentication
 
 The clients must authenticate in order to be able to send or receive HLS fragments.
 
-In order to authenticate, the client must send an authentication token as a parameter of the action message (`PUSH` or `PULL`, check the [websocket protocol documentation](./websocket-protocol.md)).
+In order to authenticate, the client must send an authentication token as a parameter of the action message (`PUSH` or `PULL`, check the [WebSocket protocol documentation](./websocket-protocol.md)).
 
 The token is a **JSON Web Token (JWT)**, signed with a secret shared by the nodes, with the algorithm `HMAC_256`.
 
