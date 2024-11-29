@@ -76,16 +76,12 @@ type HttpServer struct {
 	relayController *RelayController
 }
 
-func AllowOrigin(r *http.Request) bool {
-	return true
-}
-
 // Creates HTTP server
 func CreateHttpServer(config HttpServerConfig, authController *AuthController, sourceController *SourcesController, relayController *RelayController) *HttpServer {
 	return &HttpServer{
 		config: config,
 		upgrader: &websocket.Upgrader{
-			CheckOrigin: AllowOrigin,
+			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 		mu:               &sync.Mutex{},
 		nextConnectionId: 0,
@@ -210,5 +206,4 @@ func (server *HttpServer) Run(wg *sync.WaitGroup) {
 	// Wait for all threads to finish
 
 	wgInternal.Wait()
-
 }
