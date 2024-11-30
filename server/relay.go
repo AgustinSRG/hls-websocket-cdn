@@ -60,10 +60,19 @@ type HlsRelay struct {
 
 	// Channel to interrupt the heartbeat thread
 	heartbeatInterruptChannel chan bool
+
+	// True if ready
+	ready bool
+
+	// Wait group for the relay to be ready
+	readyWaitGroup *sync.WaitGroup
 }
 
 // Creates new instance of HlsRelay
 func NewHlsRelay(controller *RelayController, id uint64, url string, streamId string, fragmentBufferMaxLength int, onlySource bool) *HlsRelay {
+	readyWaitGroup := &sync.WaitGroup{}
+	readyWaitGroup.Add(1)
+
 	return &HlsRelay{
 		id:                        id,
 		mu:                        &sync.Mutex{},
@@ -81,6 +90,37 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 		expectedBinary:            false,
 		inactivityWarning:         false,
 		heartbeatInterruptChannel: make(chan bool, 1),
+		ready:                     false,
+		readyWaitGroup:            readyWaitGroup,
+	}
+}
+
+// Waits until the relay is ready (either connected or closed)
+func (relay *HlsRelay) WaitUntilReady() {
+	relay.mu.Lock()
+
+	if relay.ready {
+		return
+	}
+
+	relay.mu.Unlock()
+
+	relay.readyWaitGroup.Wait() // Wait for ready
+}
+
+// Sets relay status to ready
+func (relay *HlsRelay) SetReady() {
+	var wasReady bool
+
+	relay.mu.Lock()
+
+	wasReady = relay.ready
+	relay.ready = true
+
+	relay.mu.Unlock()
+
+	if !wasReady {
+		relay.readyWaitGroup.Done()
 	}
 }
 
@@ -201,7 +241,7 @@ func (relay *HlsRelay) LogError(err error, msg string) {
 
 // Logs info message for the relay
 func (relay *HlsRelay) LogInfo(msg string) {
-	LogInfo("[Relay: " + fmt.Sprint(relay.id) + "]" + msg)
+	LogInfo("[Relay: " + fmt.Sprint(relay.id) + "] " + msg)
 }
 
 // Logs debug message for the relay
@@ -232,7 +272,11 @@ func (relay *HlsRelay) Run() {
 			}
 		}
 		// Ensure connection is closed
-		relay.socket.Close()
+		if relay.socket != nil {
+			relay.socket.Close()
+		}
+		// Ready
+		relay.SetReady()
 		// Release resources
 		relay.onClose()
 		// Log
@@ -346,6 +390,7 @@ func (relay *HlsRelay) ReadTextMessage(socket *websocket.Conn) bool {
 		return false
 	case "OK":
 		relay.LogDebug("OK received. Waiting for fragments...")
+		relay.SetReady()
 	case "F":
 		return relay.HandleFragmentMetadata(socket, parsedMessage)
 	case "CLOSE":

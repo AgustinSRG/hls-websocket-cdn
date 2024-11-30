@@ -68,7 +68,25 @@ func testMain() {
 	SetInfoLogEnabled(genv.GetEnvBool("LOG_INFO", true))
 }
 
-func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFragment, wg *sync.WaitGroup, t *testing.T) {
+type PublisherSpectatorsSync struct {
+	wgPublisher  *sync.WaitGroup
+	wgSpectators *sync.WaitGroup
+}
+
+func MakePublisherSpectatorsSync(spectatorsCount int) *PublisherSpectatorsSync {
+	wgPublisher := &sync.WaitGroup{}
+	wgPublisher.Add(1)
+
+	wgSpectators := &sync.WaitGroup{}
+	wgSpectators.Add(spectatorsCount)
+
+	return &PublisherSpectatorsSync{
+		wgPublisher:  wgPublisher,
+		wgSpectators: wgSpectators,
+	}
+}
+
+func runTestPublisher(name string, serverUrl string, streamId string, dataToPublish []HlsFragment, wg *sync.WaitGroup, groupSync *PublisherSpectatorsSync, t *testing.T) {
 	defer wg.Done()
 
 	// Connect
@@ -77,6 +95,7 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 
 	if err != nil {
 		t.Error(err)
+		groupSync.wgPublisher.Done()
 		return
 	}
 
@@ -105,6 +124,7 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 
 		if err != nil {
 			t.Error(err)
+			groupSync.wgPublisher.Done()
 			return
 		}
 
@@ -114,11 +134,13 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 
 		if err != nil {
 			t.Error(err)
+			groupSync.wgPublisher.Done()
 			return
 		}
 
 		if mt != websocket.TextMessage {
-			t.Errorf("Unexpected non-text message")
+			t.Errorf("[Publisher: %v] Unexpected non-text message", name)
+			groupSync.wgPublisher.Done()
 			return
 		}
 
@@ -128,10 +150,13 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 		case "OK":
 			done = true
 		case "E":
-			t.Errorf("Received error message from server: %v", parsedMessage.Serialize())
+			t.Errorf("[Publisher: %v] Received error message from server: %v", name, parsedMessage.Serialize())
+			groupSync.wgPublisher.Done()
 			return
 		}
 	}
+
+	groupSync.wgPublisher.Done() // Publisher is ready to go
 
 	// Send the fragments
 
@@ -147,6 +172,10 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 		socket.WriteMessage(websocket.BinaryMessage, f.Data)
 	}
 
+	// Wait for the spectators before closing
+
+	groupSync.wgSpectators.Wait()
+
 	// Send the close
 
 	closeMessage := WebsocketProtocolMessage{
@@ -156,14 +185,19 @@ func runTestPublisher(serverUrl string, streamId string, dataToPublish []HlsFrag
 	socket.WriteMessage(websocket.TextMessage, []byte(closeMessage.Serialize()))
 }
 
-func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragment, wg *sync.WaitGroup, t *testing.T) {
+func runTestSpectator(name string, serverUrl string, streamId string, dataToExpect []HlsFragment, wg *sync.WaitGroup, groupSync *PublisherSpectatorsSync, t *testing.T) {
 	defer wg.Done()
+
+	// Wait for the publisher before connecting
+
+	groupSync.wgPublisher.Wait()
 
 	// Connect
 
 	socket, _, err := websocket.DefaultDialer.Dial(serverUrl, nil)
 
 	if err != nil {
+		groupSync.wgSpectators.Done()
 		t.Error(err)
 		return
 	}
@@ -193,6 +227,7 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 
 		if err != nil {
 			t.Error(err)
+			groupSync.wgSpectators.Done()
 			return
 		}
 
@@ -202,11 +237,13 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 
 		if err != nil {
 			t.Error(err)
+			groupSync.wgSpectators.Done()
 			return
 		}
 
 		if mt != websocket.TextMessage {
-			t.Errorf("Unexpected non-text message")
+			t.Errorf("[Spectator: %v] Unexpected non-text message", name)
+			groupSync.wgSpectators.Done()
 			return
 		}
 
@@ -216,7 +253,8 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 		case "OK":
 			done = true
 		case "E":
-			t.Errorf("Received error message from server: %v", parsedMessage.Serialize())
+			t.Errorf("[Spectator: %v] Received error message from server: %v", name, parsedMessage.Serialize())
+			groupSync.wgSpectators.Done()
 			return
 		}
 
@@ -227,6 +265,8 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 
 		socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
 	}
+
+	groupSync.wgSpectators.Done() // Spectator is ready to go
 
 	// Wait for the messages
 
@@ -257,7 +297,7 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 			}
 
 			if mt != websocket.BinaryMessage {
-				t.Errorf("Unexpected non-binary message")
+				t.Errorf("[Spectator: %v] Unexpected non-binary message", name)
 				return
 			}
 
@@ -266,19 +306,19 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 			// Check fragment
 
 			if fragmentIndex > len(dataToExpect) {
-				t.Errorf("Unexpected extra fragment. Index=%v / Expected fragment count:%v ", fragmentIndex, dataToExpect)
+				t.Errorf("[Spectator: %v] Unexpected extra fragment. Index=%v / Expected fragment count:%v ", name, fragmentIndex, dataToExpect)
 				return
 			}
 
 			expectedFragment := dataToExpect[fragmentIndex]
 
 			if expectedFragment.Duration != fragment.Duration {
-				t.Errorf("[F: %v] Duration does not match. Expected %v, Actual: %v", fragmentIndex, expectedFragment.Duration, fragment.Duration)
+				t.Errorf("[Spectator: %v] [F: %v] Duration does not match. Expected %v, Actual: %v", name, fragmentIndex, expectedFragment.Duration, fragment.Duration)
 				return
 			}
 
 			if !bytes.Equal(expectedFragment.Data, fragment.Data) {
-				t.Errorf("[F: %v] Data does not match. Expected %v, Actual: %v", fragmentIndex, expectedFragment.Data, fragment.Data)
+				t.Errorf("[Spectator: %v] [F: %v] Data does not match. Expected %v, Actual: %v", name, fragmentIndex, expectedFragment.Data, fragment.Data)
 				return
 			}
 
@@ -296,7 +336,7 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 			}
 
 			if mt != websocket.TextMessage {
-				t.Errorf("Unexpected non-text message")
+				t.Errorf("[Spectator: %v] Unexpected non-text message", name)
 				return
 			}
 
@@ -307,7 +347,7 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 				parsedDuration, err := strconv.ParseFloat(parsedMessage.GetParameter("duration"), 32)
 
 				if err != nil {
-					t.Errorf("Invalid duration of fragment: %v", parsedMessage.Serialize())
+					t.Errorf("[Spectator: %v] Invalid duration of fragment: %v", name, parsedMessage.Serialize())
 					return
 				}
 
@@ -316,7 +356,7 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 			case "CLOSE":
 				closed = true
 			case "E":
-				t.Errorf("Received error message from server: %v", parsedMessage.Serialize())
+				t.Errorf("[Spectator: %v] Received error message from server: %v", name, parsedMessage.Serialize())
 				return
 			}
 		}
@@ -327,6 +367,10 @@ func runTestSpectator(serverUrl string, streamId string, dataToExpect []HlsFragm
 		}
 
 		socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
+	}
+
+	if fragmentIndex < len(dataToExpect) {
+		t.Errorf("[Spectator: %v] Received less fragments than expected. Expected: %v, Received: %v", name, len(dataToExpect), fragmentIndex)
 	}
 }
 
@@ -398,17 +442,71 @@ func TestDirectScenario(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 
-	wg.Add(1)
-	go runTestPublisher(singleServer.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, t)
+	group1 := MakePublisherSpectatorsSync(1)
 
 	wg.Add(1)
-	go runTestSpectator(singleServer.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, t)
+	go runTestPublisher("P1", singleServer.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
 
 	wg.Add(1)
-	go runTestPublisher(singleServer.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, t)
+	go runTestSpectator("S1", singleServer.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	group2 := MakePublisherSpectatorsSync(2)
 
 	wg.Add(1)
-	go runTestSpectator(singleServer.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, t)
+	go runTestPublisher("P2", singleServer.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S2", singleServer.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S3", singleServer.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	// Wait for clients
+
+	wg.Wait()
+}
+
+// Test a scenario with 2 servers and a publish registry
+// Publisher -> Server1 -> Server2 -> Spectator
+func TestPublishRegistryScenario(t *testing.T) {
+	testMain()
+
+	// Prepare mocks
+
+	mockPublishRegistry := NewMockPublishRegistry()
+
+	// Prepare servers
+
+	server1 := makeTestServer(mockPublishRegistry, true, "")
+	defer server1.Close()
+
+	server2 := makeTestServer(mockPublishRegistry, true, "")
+	defer server2.Close()
+
+	// Run clients
+
+	// Stream 1
+
+	wg := &sync.WaitGroup{}
+
+	group1 := MakePublisherSpectatorsSync(1)
+
+	wg.Add(1)
+	go runTestPublisher("P1", server1.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	wg.Add(1)
+	go runTestSpectator("S1", server2.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	group2 := MakePublisherSpectatorsSync(2)
+
+	wg.Add(1)
+	go runTestPublisher("P2", server2.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S2", server1.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S3", server2.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
 
 	// Wait for clients
 

@@ -116,11 +116,17 @@ func (rc *RelayController) RelayStream(streamId string) *HlsRelay {
 		pubRegUrl, err := rc.publishRegistry.GetPublishingServer(streamId)
 
 		if err != nil {
-			LogError(err, "Could not find publishing server for stream: "+streamId)
+			LogError(err, "[PUBLISH REG] Could not find publishing server for stream: "+streamId)
 		} else if pubRegUrl != "" {
 			relayUrl = pubRegUrl
 			onlySource = true
+
+			LogDebug("[PUBLISH REG] Found server for stream " + streamId + " -> " + pubRegUrl)
+		} else {
+			LogDebug("[PUBLISH REG] Could not find publishing server for stream: " + streamId)
 		}
+	} else {
+		LogDebug("[PUBLISH REG] No publish registry is configured")
 	}
 
 	if relayUrl == "" && rc.config.RelayFromEnabled {
@@ -131,5 +137,10 @@ func (rc *RelayController) RelayStream(streamId string) *HlsRelay {
 		return nil
 	}
 
-	return rc.GetRelayOrCreate(streamId, relayUrl, onlySource)
+	relay := rc.GetRelayOrCreate(streamId, relayUrl, onlySource)
+
+	// Wait for ready
+	relay.WaitUntilReady()
+
+	return relay
 }

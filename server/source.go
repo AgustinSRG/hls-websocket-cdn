@@ -65,6 +65,7 @@ type HlsSource struct {
 func NewHlsSource(controller *SourcesController, streamId string, fragmentBufferMaxLength int) *HlsSource {
 	return &HlsSource{
 		mu:                       &sync.Mutex{},
+		streamId:                 streamId,
 		controller:               controller,
 		listeners:                make(map[uint64]*HlsSourceListener),
 		closed:                   false,

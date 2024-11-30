@@ -60,9 +60,15 @@ func (sc *SourcesController) CreateSource(streamId string) *HlsSource {
 
 	sc.mu.Unlock()
 
+	// Close existing source
+
 	if existingSource != nil {
 		existingSource.Close()
 	}
+
+	// Announce
+
+	source.Announce()
 
 	return source
 }
