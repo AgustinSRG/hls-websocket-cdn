@@ -1,0 +1,35 @@
+# Workflow for building and testing the publishing client library
+
+name: Client publisher library CI
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - client-publisher/**
+      - .github/workflows/client-publisher.yml
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - client-publisher/**
+      - .github/workflows/client-publisher.yml
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.22.x
+
+    - name: Build
+      working-directory: ./client-publisher
+      run: go build -v ./...
+
+    - name: Test
+      working-directory: ./client-publisher
+      run: go test -v ./...
