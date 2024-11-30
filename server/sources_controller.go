@@ -8,6 +8,9 @@ import "sync"
 type SourcesControllerConfig struct {
 	// Max length of the fragment buffer
 	FragmentBufferMaxLength int
+
+	// External websocket URL
+	ExternalWebsocketUrl string
 }
 
 // Sources controller
@@ -16,7 +19,7 @@ type SourcesController struct {
 	mu *sync.Mutex
 
 	// Publish registry
-	publishRegistry *RedisPublishRegistry
+	publishRegistry PublishRegistry
 
 	// Configuration
 	config SourcesControllerConfig
@@ -26,7 +29,7 @@ type SourcesController struct {
 }
 
 // Creates new instance of SourcesController
-func NewSourcesController(config SourcesControllerConfig, publishRegistry *RedisPublishRegistry) *SourcesController {
+func NewSourcesController(config SourcesControllerConfig, publishRegistry PublishRegistry) *SourcesController {
 	return &SourcesController{
 		mu:              &sync.Mutex{},
 		config:          config,

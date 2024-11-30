@@ -12,6 +12,9 @@ import (
 // Default max size (in bytes) for binary messages
 const DEFAULT_MAX_BINARY_MSG_SIZE = 50 * 1024 * 1024
 
+// Default fragment buffer max length
+const DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH = 10
+
 // Main
 func main() {
 	godotenv.Load() // Load env vars
@@ -38,7 +41,6 @@ func main() {
 			Port:                          genv.GetEnvInt("PUB_REG_REDIS_PORT", 6379),
 			Password:                      genv.GetEnvString("PUB_REG_REDIS_PASSWORD", ""),
 			UseTls:                        genv.GetEnvBool("PUB_REG_REDIS_USE_TLS", false),
-			ExternalWebsocketUrl:          externalWebsocketUrl,
 			PublishRefreshIntervalSeconds: genv.GetEnvInt("PUB_REG_REFRESH_INTERVAL_SECONDS", 60),
 		})
 
@@ -62,14 +64,15 @@ func main() {
 
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
-		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
+		ExternalWebsocketUrl:    externalWebsocketUrl,
 	}, publishRegistry)
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
 		RelayFromUrl:            genv.GetEnvString("RELAY_FROM_URL", ""),
 		RelayFromEnabled:        genv.GetEnvBool("RELAY_FROM_ENABLED", false),
-		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", 10),
+		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 	}, authController, publishRegistry)
 

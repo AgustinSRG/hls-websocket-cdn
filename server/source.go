@@ -80,11 +80,11 @@ func (source *HlsSource) PeriodicallyAnnounce() {
 		return
 	}
 
-	intervalSeconds := source.controller.publishRegistry.config.PublishRefreshIntervalSeconds
+	announceInterval := source.controller.publishRegistry.GetAnnounceInterval()
 
 	for {
 		select {
-		case <-time.After(time.Duration(intervalSeconds) * time.Second):
+		case <-time.After(announceInterval):
 			source.Announce()
 		case <-source.announceInterruptChannel:
 			return
@@ -98,7 +98,7 @@ func (source *HlsSource) Announce() {
 		return
 	}
 
-	err := source.controller.publishRegistry.AnnouncePublishedStream(source.streamId)
+	err := source.controller.publishRegistry.AnnouncePublishedStream(source.streamId, source.controller.config.ExternalWebsocketUrl)
 
 	if err != nil {
 		LogError(err, "Error publishing stream source")

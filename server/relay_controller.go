@@ -37,11 +37,11 @@ type RelayController struct {
 	authController *AuthController
 
 	// Publish registry
-	publishRegistry *RedisPublishRegistry
+	publishRegistry PublishRegistry
 }
 
 // Creates an instance RelayController
-func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry *RedisPublishRegistry) *RelayController {
+func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry PublishRegistry) *RelayController {
 	return &RelayController{
 		config:          config,
 		mu:              &sync.Mutex{},
