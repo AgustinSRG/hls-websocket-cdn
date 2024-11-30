@@ -17,6 +17,9 @@ type RelayControllerConfig struct {
 
 	// Max binary message size
 	MaxBinaryMessageSize int64
+
+	// True if it has a publish registry
+	HasPublishRegistry bool
 }
 
 // Relay controller
@@ -112,7 +115,7 @@ func (rc *RelayController) RelayStream(streamId string) *HlsRelay {
 	var relayUrl string = ""
 	var onlySource bool = false
 
-	if rc.publishRegistry != nil {
+	if rc.config.HasPublishRegistry {
 		pubRegUrl, err := rc.publishRegistry.GetPublishingServer(streamId)
 
 		if err != nil {

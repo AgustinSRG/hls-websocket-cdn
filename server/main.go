@@ -66,6 +66,7 @@ func main() {
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		ExternalWebsocketUrl:    externalWebsocketUrl,
+		HasPublishRegistry:      publishRegistry != nil,
 	}, publishRegistry)
 
 	// Relay controller
@@ -74,6 +75,7 @@ func main() {
 		RelayFromEnabled:        genv.GetEnvBool("RELAY_FROM_ENABLED", false),
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry)
 
 	// Setup server

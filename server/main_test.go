@@ -392,6 +392,7 @@ func makeTestServer(publishRegistry *MockPublishRegistry, allowPush bool, relayF
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		ExternalWebsocketUrl:    "",
+		HasPublishRegistry:      publishRegistry != nil,
 	}, publishRegistry)
 
 	// Relay controller
@@ -400,6 +401,7 @@ func makeTestServer(publishRegistry *MockPublishRegistry, allowPush bool, relayF
 		RelayFromEnabled:        relayFrom != "",
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		MaxBinaryMessageSize:    DEFAULT_MAX_BINARY_MSG_SIZE,
+		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry)
 
 	// Setup server
@@ -442,6 +444,8 @@ func TestDirectScenario(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 
+	// Stream 1
+
 	group1 := MakePublisherSpectatorsSync(1)
 
 	wg.Add(1)
@@ -449,6 +453,8 @@ func TestDirectScenario(t *testing.T) {
 
 	wg.Add(1)
 	go runTestSpectator("S1", singleServer.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	// Stream 2
 
 	group2 := MakePublisherSpectatorsSync(2)
 
@@ -485,9 +491,9 @@ func TestPublishRegistryScenario(t *testing.T) {
 
 	// Run clients
 
-	// Stream 1
-
 	wg := &sync.WaitGroup{}
+
+	// Stream 1
 
 	group1 := MakePublisherSpectatorsSync(1)
 
@@ -496,6 +502,8 @@ func TestPublishRegistryScenario(t *testing.T) {
 
 	wg.Add(1)
 	go runTestSpectator("S1", server2.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	// Stream 2
 
 	group2 := MakePublisherSpectatorsSync(2)
 
@@ -507,6 +515,61 @@ func TestPublishRegistryScenario(t *testing.T) {
 
 	wg.Add(1)
 	go runTestSpectator("S3", server2.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	// Wait for clients
+
+	wg.Wait()
+}
+
+// Test a scenario with 4 servers, 2 server to publish, 2 servers to relay from the publishers
+// Publisher -> PubServer1, PubServer2 -> RelayServer -> Spectator
+func TestThreeStepScenario(t *testing.T) {
+	testMain()
+
+	// Prepare mocks
+
+	mockPublishRegistry := NewMockPublishRegistry()
+
+	// Prepare servers
+
+	pubServer1 := makeTestServer(mockPublishRegistry, true, "")
+	defer pubServer1.Close()
+
+	pubServer2 := makeTestServer(mockPublishRegistry, true, "")
+	defer pubServer2.Close()
+
+	relayServer1 := makeTestServer(nil, false, pubServer1.url)
+	defer relayServer1.Close()
+
+	relayServer2 := makeTestServer(nil, false, pubServer2.url)
+	defer relayServer2.Close()
+
+	// Run clients
+
+	wg := &sync.WaitGroup{}
+
+	// Stream 1
+
+	group1 := MakePublisherSpectatorsSync(1)
+
+	wg.Add(1)
+	go runTestPublisher("P1", pubServer1.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	wg.Add(1)
+	go runTestSpectator("S1", relayServer2.url, TEST_STREAM_ID_1, TEST_STREAM_DATA_1, wg, group1, t)
+
+	// Stream 2
+
+	group2 := MakePublisherSpectatorsSync(2)
+
+	wg.Add(1)
+	go runTestPublisher("P2", pubServer2.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S2", relayServer1.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
+
+	wg.Add(1)
+	go runTestSpectator("S3", relayServer2.url, TEST_STREAM_ID_2, TEST_STREAM_DATA_2, wg, group2, t)
 
 	// Wait for clients
 

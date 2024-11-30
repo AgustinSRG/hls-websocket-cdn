@@ -11,6 +11,9 @@ type SourcesControllerConfig struct {
 
 	// External websocket URL
 	ExternalWebsocketUrl string
+
+	// True if it has a publish registry
+	HasPublishRegistry bool
 }
 
 // Sources controller

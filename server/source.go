@@ -77,7 +77,7 @@ func NewHlsSource(controller *SourcesController, streamId string, fragmentBuffer
 
 // Periodically announces the source
 func (source *HlsSource) PeriodicallyAnnounce() {
-	if source.controller.publishRegistry == nil {
+	if !source.controller.config.HasPublishRegistry {
 		return
 	}
 
@@ -95,7 +95,7 @@ func (source *HlsSource) PeriodicallyAnnounce() {
 
 // Announces source to the publish registry
 func (source *HlsSource) Announce() {
-	if source.controller.publishRegistry == nil {
+	if !source.controller.config.HasPublishRegistry {
 		return
 	}
 
