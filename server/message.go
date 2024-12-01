@@ -27,7 +27,7 @@ func (msg *WebsocketProtocolMessage) GetParameter(param string) string {
 
 // Serializes message to string (to be sent)
 func (msg *WebsocketProtocolMessage) Serialize() string {
-	if msg.Parameters == nil || len(msg.Parameters) == 0 {
+	if len(msg.Parameters) == 0 {
 		return msg.MessageType
 	}
 

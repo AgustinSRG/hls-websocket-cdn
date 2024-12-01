@@ -16,7 +16,9 @@ func (server *HttpServer) RunTestServer() (string, net.Listener) {
 		panic(err)
 	}
 
-	go http.Serve(listener, server)
+	go func() {
+		_ = http.Serve(listener, server)
+	}()
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	url := "ws://127.0.0.1:" + fmt.Sprint(port) + "/"

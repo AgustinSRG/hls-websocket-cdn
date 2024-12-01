@@ -62,7 +62,7 @@ var TEST_STREAM_DATA_2 = []HlsFragment{
 }
 
 func testMain() *glog.Logger {
-	godotenv.Load() // Load env vars
+	_ = godotenv.Load() // Load env vars
 
 	return glog.CreateRootLogger(glog.LoggerConfiguration{
 		ErrorEnabled:   genv.GetEnvBool("LOG_ERROR", true),
@@ -122,7 +122,7 @@ func runTestPublisher(name string, serverUrl string, streamId string, dataToPubl
 		},
 	}
 
-	socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 
 	// Wait for the OK
 
@@ -177,8 +177,8 @@ func runTestPublisher(name string, serverUrl string, streamId string, dataToPubl
 			},
 		}
 
-		socket.WriteMessage(websocket.TextMessage, []byte(metadataMessage.Serialize()))
-		socket.WriteMessage(websocket.BinaryMessage, f.Data)
+		_ = socket.WriteMessage(websocket.TextMessage, []byte(metadataMessage.Serialize()))
+		_ = socket.WriteMessage(websocket.BinaryMessage, f.Data)
 	}
 
 	// Wait for the spectators before closing
@@ -191,7 +191,7 @@ func runTestPublisher(name string, serverUrl string, streamId string, dataToPubl
 		MessageType: "CLOSE",
 	}
 
-	socket.WriteMessage(websocket.TextMessage, []byte(closeMessage.Serialize()))
+	_ = socket.WriteMessage(websocket.TextMessage, []byte(closeMessage.Serialize()))
 }
 
 func runTestSpectator(name string, serverUrl string, streamId string, dataToExpect []HlsFragment, wg *sync.WaitGroup, groupSync *PublisherSpectatorsSync, t *testing.T) {
@@ -229,7 +229,7 @@ func runTestSpectator(name string, serverUrl string, streamId string, dataToExpe
 		},
 	}
 
-	socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 
 	// Wait for the OK
 
@@ -276,7 +276,7 @@ func runTestSpectator(name string, serverUrl string, streamId string, dataToExpe
 			MessageType: "H",
 		}
 
-		socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
+		_ = socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
 	}
 
 	groupSync.wgSpectators.Done() // Spectator is ready to go
@@ -379,7 +379,7 @@ func runTestSpectator(name string, serverUrl string, streamId string, dataToExpe
 			MessageType: "H",
 		}
 
-		socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
+		_ = socket.WriteMessage(websocket.TextMessage, []byte(heartbeatMessage.Serialize()))
 	}
 
 	if fragmentIndex < len(dataToExpect) {

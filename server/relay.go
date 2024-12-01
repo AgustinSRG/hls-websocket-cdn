@@ -347,7 +347,7 @@ func (relay *HlsRelay) SendErrorMessage(socket *websocket.Conn, errorCode string
 		relay.logger.Trace(">>> " + msg.Serialize())
 	}
 
-	socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 }
 
 // Reads text message
@@ -502,7 +502,7 @@ func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
 				MessageType: "H",
 			}
 
-			socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+			_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 		}
 
 		if relay.checkInactivity() {

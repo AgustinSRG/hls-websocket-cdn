@@ -295,7 +295,7 @@ func (ch *ConnectionHandler) Send(msg *WebsocketProtocolMessage) {
 		ch.logger.Trace(">>> " + msg.Serialize())
 	}
 
-	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 }
 
 // Sends a message to the websocket client with attached binary data
@@ -312,8 +312,8 @@ func (ch *ConnectionHandler) SendWithBinary(msg *WebsocketProtocolMessage, binar
 		ch.logger.Trace(">>> [BINARY] " + fmt.Sprint(len(binaryData)) + " bytes")
 	}
 
-	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
-	ch.connection.WriteMessage(websocket.BinaryMessage, []byte(binaryData))
+	_ = ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = ch.connection.WriteMessage(websocket.BinaryMessage, []byte(binaryData))
 }
 
 // Sends a close message and closes the connection
@@ -333,8 +333,8 @@ func (ch *ConnectionHandler) SendClose() {
 		ch.logger.Trace(">>> " + msg.Serialize())
 	}
 
-	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
-	ch.connection.Close()
+	_ = ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
+	_ = ch.connection.Close()
 }
 
 // Sends a fragment

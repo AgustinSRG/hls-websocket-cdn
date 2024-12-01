@@ -18,7 +18,7 @@ const DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH = 10
 
 // Main
 func main() {
-	godotenv.Load() // Load env vars
+	_ = godotenv.Load() // Load env vars
 
 	// Configure logs
 	logger := glog.CreateRootLogger(glog.LoggerConfiguration{
