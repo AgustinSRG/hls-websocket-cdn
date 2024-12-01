@@ -81,10 +81,13 @@ type HttpServer struct {
 
 	// Relay controller
 	relayController *RelayController
+
+	// Rate limiter
+	rateLimiter *RateLimiter
 }
 
 // Creates HTTP server
-func CreateHttpServer(config HttpServerConfig, logger *glog.Logger, authController *AuthController, sourceController *SourcesController, relayController *RelayController) *HttpServer {
+func CreateHttpServer(config HttpServerConfig, logger *glog.Logger, authController *AuthController, sourceController *SourcesController, relayController *RelayController, rateLimiter *RateLimiter) *HttpServer {
 	return &HttpServer{
 		config: config,
 		logger: logger,
@@ -96,6 +99,7 @@ func CreateHttpServer(config HttpServerConfig, logger *glog.Logger, authControll
 		authController:   authController,
 		sourceController: sourceController,
 		relayController:  relayController,
+		rateLimiter:      rateLimiter,
 	}
 }
 
@@ -122,21 +126,37 @@ func (server *HttpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !server.rateLimiter.CountRequest(ip) {
+		w.WriteHeader(429)
+		server.logger.Debugf("Request rejected from %v due to too many requests", ip)
+		return
+	}
+
 	if server.config.LogRequests {
 		server.logger.Infof("[HTTP] [FROM: %v] %v %v", ip, req.Method, req.URL.Path)
 	}
 
 	if strings.HasPrefix(req.URL.Path, server.config.WebsocketPrefix) {
+		// Check rate limiter
+		shouldAccept := server.rateLimiter.StartConnection(ip)
+
+		if !shouldAccept {
+			w.WriteHeader(429)
+			server.logger.Debugf("Connection rejected from %v does to too many connections", ip)
+			return
+		}
+
 		// Upgrade connection
 
 		c, err := server.upgrader.Upgrade(w, req, nil)
 		if err != nil {
 			server.logger.Errorf("Error upgrading connection: %v", err)
+			server.rateLimiter.EndConnection(ip)
 			return
 		}
 
 		// Handle connection
-		ch := CreateConnectionHandler(c, server)
+		ch := CreateConnectionHandler(c, ip, server)
 		go ch.Run()
 	} else {
 		w.WriteHeader(200)

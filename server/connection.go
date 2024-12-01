@@ -29,6 +29,9 @@ type ConnectionHandler struct {
 	// Connection id
 	id uint64
 
+	// IP address
+	ip string
+
 	// Connection
 	connection *websocket.Conn
 
@@ -67,9 +70,10 @@ type ConnectionHandler struct {
 }
 
 // Creates connection handler
-func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *ConnectionHandler {
+func CreateConnectionHandler(conn *websocket.Conn, ip string, server *HttpServer) *ConnectionHandler {
 	return &ConnectionHandler{
 		id:                        0,
+		ip:                        ip,
 		connection:                conn,
 		server:                    server,
 		logger:                    server.logger,
@@ -111,6 +115,9 @@ func (ch *ConnectionHandler) onClose() {
 
 	// Interrupt heartbeat
 	ch.heartbeatInterruptChannel <- true
+
+	// Update rate limiter
+	ch.server.rateLimiter.EndConnection(ch.ip)
 }
 
 // Runs connection handler
@@ -130,7 +137,7 @@ func (ch *ConnectionHandler) Run() {
 	// Update logger
 	ch.logger = ch.server.logger.CreateChildLogger("[Conn #" + fmt.Sprint(ch.id) + "] ")
 
-	ch.logger.Info("Connection established.")
+	ch.logger.Infof("Connection established. Client IP: %v", ch.ip)
 
 	go ch.sendHeartbeatMessages() // Start heartbeat sending
 

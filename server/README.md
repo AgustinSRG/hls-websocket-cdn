@@ -113,6 +113,21 @@ You can configure the server using environment variables.
 | `PUSH_SECRET`  | Secret to sign and validate the authentication tokens for pushing the streams. |
 | `PUSH_ALLOWED` | Can be `YES` or `NO`. Set it to `YES` to allow pushing streams to the server.  |
 
+### Rate limit
+
+In order to prevent DoS attacks, a measure you can take is to limit the rate of requests per client IP address.
+
+Note: Only use if the CDN server is exposed to the internet. If you are using a proxy. Do the rate limiting in the proxy, since it is the backend element closer to the client and probably has better rate limiting capabilities.
+
+| Variable                 | Description                                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `RATE_LIMIT_ENABLED`     | Can be `YES` or `NO`. Set it to `YES` to enable rate limiting.                                     |
+| `RATE_LIMIT_WHITELIST`   | List of IP ranges not affected by the rate limit. Split by commas. Example: `127.0.0.1,10.0.0.0/8` |
+| `RATE_LIMIT_CONNECTIONS` | Max number of active connections per unique client IP address. `0` means no limit.                 |
+| `RATE_LIMIT_REQ_PER_SEC` | Max number of request per second per unique client IP address. `0` means no limit                  |
+| `RATE_LIMIT_REQ_BURST`   | Excess requests a client can make. If the client sends exceeds requests, it must wait more time.   |
+| `RATE_LIMIT_REQ_CLEANUP` | Interval (seconds) to perform cleanup in the request counter. `10` by default.                     |
+
 ### Memory limiter
 
 By default, the server will store fragments in a buffer to send to new clients immediately. However, this can increase the memory usage, and result in a crash if the machine memory is fully used.

@@ -16,7 +16,8 @@
             "glog",
             "godotenv",
             "Infof",
-            "joho"
+            "joho",
+            "Warningf"
         ],
     }
 }

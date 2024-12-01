@@ -423,13 +423,20 @@ func makeTestServer(logger *glog.Logger, publishRegistry *MockPublishRegistry, a
 		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 
+	// Rate limiter
+	rateLimiter := NewRateLimiter(RateLimiterConfig{
+		Enabled:              true,
+		MaxConnections:       10,
+		MaxRequestsPerSecond: 10,
+	}, logger.CreateChildLogger("[RateLimiter] "))
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// Other config
 		WebsocketPrefix:      "/",
 		MaxBinaryMessageSize: DEFAULT_MAX_BINARY_MSG_SIZE,
 		LogRequests:          true,
-	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController)
+	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController, rateLimiter)
 
 	// Run test server
 

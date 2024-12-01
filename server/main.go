@@ -90,6 +90,15 @@ func main() {
 		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 
+	rateLimiter := NewRateLimiter(RateLimiterConfig{
+		Enabled:                genv.GetEnvBool("RATE_LIMIT_ENABLED", false),
+		Whitelist:              genv.GetEnvString("RATE_LIMIT_WHITELIST", ""),
+		MaxConnections:         genv.GetEnvInt("RATE_LIMIT_CONNECTIONS", 0),
+		MaxRequestsPerSecond:   genv.GetEnvInt("RATE_LIMIT_REQ_PER_SEC", 0),
+		RequestBurst:           genv.GetEnvInt("RATE_LIMIT_REQ_BURST", 0),
+		CleanupIntervalSeconds: genv.GetEnvInt64("RATE_LIMIT_REQ_CLEANUP", 10),
+	}, logger.CreateChildLogger("[RateLimiter] "))
+
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// HTTP
@@ -107,7 +116,7 @@ func main() {
 		WebsocketPrefix:      genv.GetEnvString("WEBSOCKET_PREFIX", "/"),
 		MaxBinaryMessageSize: genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 		LogRequests:          genv.GetEnvBool("LOG_REQUESTS", true),
-	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController)
+	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController, rateLimiter)
 
 	// Run server
 

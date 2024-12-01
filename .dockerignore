@@ -2,6 +2,7 @@
 
 /server/server
 *.exe
+*.out
 
 # Env
 
