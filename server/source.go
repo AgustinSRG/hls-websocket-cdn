@@ -3,8 +3,11 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/AgustinSRG/glog"
 )
 
 // HLS fragment
@@ -36,6 +39,9 @@ type HlsSourceListener struct {
 
 // HLS source
 type HlsSource struct {
+	// Unique ID for the source
+	id uint64
+
 	// Mutex
 	mu *sync.Mutex
 
@@ -44,6 +50,9 @@ type HlsSource struct {
 
 	// Controller
 	controller *SourcesController
+
+	// Logger
+	logger *glog.Logger
 
 	// Map of listeners
 	listeners map[uint64]*HlsSourceListener
@@ -62,11 +71,17 @@ type HlsSource struct {
 }
 
 // Creates new instance of HlsSource
-func NewHlsSource(controller *SourcesController, streamId string, fragmentBufferMaxLength int) *HlsSource {
+func NewHlsSource(id uint64, controller *SourcesController, streamId string, fragmentBufferMaxLength int) *HlsSource {
+	logger := controller.logger.CreateChildLogger("[#" + fmt.Sprint(id) + "] ")
+
+	logger.Infof("New source created for %v", streamId)
+
 	return &HlsSource{
+		id:                       id,
 		mu:                       &sync.Mutex{},
 		streamId:                 streamId,
 		controller:               controller,
+		logger:                   logger,
 		listeners:                make(map[uint64]*HlsSourceListener),
 		closed:                   false,
 		fragmentBuffer:           make([]*HlsFragment, 0),
@@ -102,7 +117,9 @@ func (source *HlsSource) Announce() {
 	err := source.controller.publishRegistry.AnnouncePublishedStream(source.streamId, source.controller.config.ExternalWebsocketUrl)
 
 	if err != nil {
-		LogError(err, "Error publishing stream source")
+		source.logger.Errorf("Error publishing stream source: %v", err)
+	} else {
+		source.logger.Debug("Source announced to the publish registry")
 	}
 }
 
@@ -150,6 +167,10 @@ func (source *HlsSource) Close() {
 		return
 	}
 
+	if source.logger.Config.DebugEnabled {
+		source.logger.Debug("Source closed")
+	}
+
 	closeEvent := HlsEvent{
 		EventType: HLS_EVENT_TYPE_CLOSE,
 	}
@@ -171,6 +192,10 @@ func (source *HlsSource) AddFragment(frag *HlsFragment) {
 
 	if source.closed {
 		return
+	}
+
+	if source.logger.Config.DebugEnabled {
+		source.logger.Debugf("Fragment added. Duration: %v, Size: %v", frag.Duration, len(frag.Data))
 	}
 
 	// Append the fragment to the buffer

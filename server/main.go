@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/AgustinSRG/genv"
+	"github.com/AgustinSRG/glog"
 	"github.com/joho/godotenv"
 )
 
@@ -20,16 +21,21 @@ func main() {
 	godotenv.Load() // Load env vars
 
 	// Configure logs
-	SetDebugLogEnabled(genv.GetEnvBool("LOG_DEBUG", false))
-	SetInfoLogEnabled(genv.GetEnvBool("LOG_INFO", true))
+	logger := glog.CreateRootLogger(glog.LoggerConfiguration{
+		ErrorEnabled:   genv.GetEnvBool("LOG_ERROR", true),
+		WarningEnabled: genv.GetEnvBool("LOG_WARNING", true),
+		InfoEnabled:    genv.GetEnvBool("LOG_INFO", true),
+		DebugEnabled:   genv.GetEnvBool("LOG_DEBUG", false),
+		TraceEnabled:   genv.GetEnvBool("LOG_TRACE", false),
+	}, glog.StandardLogFunction)
 
 	// External URL
-	externalWebsocketUrl := FigureOutExternalServerWebsocketUrl()
+	externalWebsocketUrl := FigureOutExternalServerWebsocketUrl(logger.CreateChildLogger("[FigureOutExternalServerWebsocketUrl] "))
 
 	if externalWebsocketUrl != "" {
-		LogInfo("External websocket URL: " + externalWebsocketUrl)
+		logger.Info("External websocket URL: " + externalWebsocketUrl)
 	} else {
-		LogWarning("Could not load external websocket URL. It will be impossible to register the publishing streams.")
+		logger.Warning("Could not load external websocket URL. It will be impossible to register the publishing streams.")
 	}
 
 	// Publish registry
@@ -45,14 +51,14 @@ func main() {
 		})
 
 		if err != nil {
-			LogError(err, "Could not initialize publish registry")
+			logger.Errorf("Could not initialize publish registry: %v", err)
 		}
 
 		publishRegistry = pr
 	}
 
 	if publishRegistry != nil {
-		LogInfo("Initialized publish registry")
+		logger.Info("Initialized publish registry")
 	}
 
 	// Auth
@@ -60,14 +66,14 @@ func main() {
 		PullSecret: genv.GetEnvString("PULL_SECRET", ""),
 		PushSecret: genv.GetEnvString("PUSH_SECRET", ""),
 		AllowPush:  genv.GetEnvBool("PUSH_ALLOWED", true),
-	})
+	}, logger.CreateChildLogger("[Auth] "))
 
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		ExternalWebsocketUrl:    externalWebsocketUrl,
 		HasPublishRegistry:      publishRegistry != nil,
-	}, publishRegistry)
+	}, publishRegistry, logger.CreateChildLogger("[Sources] "))
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
@@ -76,7 +82,7 @@ func main() {
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 		HasPublishRegistry:      publishRegistry != nil,
-	}, authController, publishRegistry)
+	}, authController, publishRegistry, logger.CreateChildLogger("[Relays] "))
 
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
@@ -94,7 +100,8 @@ func main() {
 		// Other config
 		WebsocketPrefix:      genv.GetEnvString("WEBSOCKET_PREFIX", "/"),
 		MaxBinaryMessageSize: genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
-	}, authController, sourcesController, relayController)
+		LogRequests:          genv.GetEnvBool("LOG_REQUESTS", true),
+	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController)
 
 	// Run server
 

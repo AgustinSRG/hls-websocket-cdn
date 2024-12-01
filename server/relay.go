@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AgustinSRG/glog"
 	"github.com/gorilla/websocket"
 )
 
@@ -21,6 +22,9 @@ type HlsRelay struct {
 
 	// Controller reference
 	controller *RelayController
+
+	// Logger
+	logger *glog.Logger
 
 	// URL
 	url string
@@ -77,6 +81,7 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 		id:                        id,
 		mu:                        &sync.Mutex{},
 		controller:                controller,
+		logger:                    controller.logger.CreateChildLogger("[#" + fmt.Sprint(id) + "] "),
 		url:                       url,
 		streamId:                  streamId,
 		onlySource:                onlySource,
@@ -234,21 +239,6 @@ func (relay *HlsRelay) onClose() {
 	relay.controller.OnRelayClosed(relay)
 }
 
-// Logs error message for the relay
-func (relay *HlsRelay) LogError(err error, msg string) {
-	LogError(err, "[Relay: "+fmt.Sprint(relay.id)+"] "+msg)
-}
-
-// Logs info message for the relay
-func (relay *HlsRelay) LogInfo(msg string) {
-	LogInfo("[Relay: " + fmt.Sprint(relay.id) + "] " + msg)
-}
-
-// Logs debug message for the relay
-func (relay *HlsRelay) LogDebug(msg string) {
-	LogDebug("[Relay: " + fmt.Sprint(relay.id) + "] " + msg)
-}
-
 // Gets true of the relay is closed
 func (relay *HlsRelay) IsClosed() bool {
 	relay.mu.Lock()
@@ -264,11 +254,11 @@ func (relay *HlsRelay) Run() {
 		if err := recover(); err != nil {
 			switch x := err.(type) {
 			case string:
-				relay.LogError(nil, "Error: "+x)
+				relay.logger.Errorf("Error: %v", x)
 			case error:
-				relay.LogError(x, "Relay connection closed with error")
+				relay.logger.Errorf("Relay connection closed with error: %v", x)
 			default:
-				LogError(nil, "Relay connection Crashed!")
+				relay.logger.Error("Relay connection Crashed!")
 			}
 		}
 		// Ensure connection is closed
@@ -280,15 +270,15 @@ func (relay *HlsRelay) Run() {
 		// Release resources
 		relay.onClose()
 		// Log
-		relay.LogInfo("Relay connection closed")
+		relay.logger.Info("Relay connection closed")
 	}()
 
-	relay.LogInfo("Relay created. Url: " + relay.url + " | Stream: " + relay.streamId)
+	relay.logger.Infof("Relay created. Url: %v | Stream: %v", relay.url, relay.streamId)
 
 	socket, _, err := websocket.DefaultDialer.Dial(relay.url, nil)
 
 	if err != nil {
-		relay.LogError(err, "Could not connect to the server")
+		relay.logger.Errorf("Could not connect to the server: %v", err)
 		return
 	}
 
@@ -296,7 +286,7 @@ func (relay *HlsRelay) Run() {
 		return
 	}
 
-	relay.LogInfo("Connected to the server")
+	relay.logger.Info("Connected to the server")
 
 	relay.mu.Lock()
 
@@ -308,7 +298,7 @@ func (relay *HlsRelay) Run() {
 	// Authenticate
 	err = relay.SendPullMessage(socket)
 	if err != nil {
-		relay.LogError(err, "Could not authenticate")
+		relay.logger.Errorf("Could not authenticate: %v", err)
 		return
 	}
 
@@ -322,7 +312,7 @@ func (relay *HlsRelay) Run() {
 
 		if err != nil {
 			if !relay.IsClosed() {
-				relay.LogError(err, "Could not set socket deadline")
+				relay.logger.Errorf("Could not set socket deadline: %v", err)
 			}
 			break // Closed
 		}
@@ -353,8 +343,8 @@ func (relay *HlsRelay) SendErrorMessage(socket *websocket.Conn, errorCode string
 		},
 	}
 
-	if log_debug_enabled {
-		relay.LogDebug(">>> " + msg.Serialize())
+	if relay.logger.Config.TraceEnabled {
+		relay.logger.Trace(">>> " + msg.Serialize())
 	}
 
 	socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
@@ -368,7 +358,7 @@ func (relay *HlsRelay) ReadTextMessage(socket *websocket.Conn) bool {
 
 	if err != nil {
 		if !relay.IsClosed() {
-			relay.LogError(err, "Could not read text message")
+			relay.logger.Errorf("Could not read text message: %v", err)
 		}
 		return false
 	}
@@ -378,18 +368,18 @@ func (relay *HlsRelay) ReadTextMessage(socket *websocket.Conn) bool {
 		return false
 	}
 
-	if log_debug_enabled {
-		relay.LogDebug("<<< \n" + string(message))
+	if relay.logger.Config.TraceEnabled {
+		relay.logger.Trace("<<< " + string(message))
 	}
 
 	parsedMessage := ParseWebsocketProtocolMessage(string(message))
 
 	switch parsedMessage.MessageType {
 	case "E":
-		relay.LogDebug("Error from server. Code: " + parsedMessage.GetParameter("code") + ", Message: " + parsedMessage.GetParameter("message"))
+		relay.logger.Debugf("Error from server. Code: %v, Message: %v", parsedMessage.GetParameter("code"), parsedMessage.GetParameter("message"))
 		return false
 	case "OK":
-		relay.LogDebug("OK received. Waiting for fragments...")
+		relay.logger.Debug("OK received. Waiting for fragments...")
 		relay.SetReady()
 	case "F":
 		return relay.HandleFragmentMetadata(socket, parsedMessage)
@@ -449,7 +439,7 @@ func (relay *HlsRelay) ReadBinaryMessage(socket *websocket.Conn) bool {
 
 	if err != nil {
 		if !relay.IsClosed() {
-			relay.LogError(err, "Could not read binary message")
+			relay.logger.Errorf("Could not read binary message: %v", err)
 		}
 		return false
 	}
@@ -491,8 +481,8 @@ func (relay *HlsRelay) SendPullMessage(socket *websocket.Conn) error {
 		},
 	}
 
-	if log_debug_enabled {
-		relay.LogDebug(">>> " + msg.Serialize())
+	if relay.logger.Config.TraceEnabled {
+		relay.logger.Trace(">>> " + msg.Serialize())
 	}
 
 	return socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
@@ -527,7 +517,7 @@ func (relay *HlsRelay) checkInactivity() bool {
 
 	if len(relay.listeners) == 0 {
 		if relay.inactivityWarning {
-			relay.LogInfo("Closing the relay due to inactivity")
+			relay.logger.Info("Closing the relay due to inactivity")
 
 			if relay.socket != nil {
 				relay.socket.Close()
@@ -540,7 +530,7 @@ func (relay *HlsRelay) checkInactivity() bool {
 
 			return true
 		} else {
-			relay.LogDebug("Inactivity detected")
+			relay.logger.Debug("Inactivity detected")
 			relay.inactivityWarning = true
 		}
 	}

@@ -7,10 +7,14 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/AgustinSRG/glog"
 )
 
 // Struct to store SSL loader status
 type SslCertificateLoader struct {
+	logger *glog.Logger
+
 	certPath string
 	keyPath  string
 
@@ -26,7 +30,7 @@ type SslCertificateLoader struct {
 }
 
 // Creates certificate loader, loading it for the first time
-func NewSslCertificateLoader(certPath string, keyPath string, checkReloadSeconds int) (*SslCertificateLoader, error) {
+func NewSslCertificateLoader(logger *glog.Logger, certPath string, keyPath string, checkReloadSeconds int) (*SslCertificateLoader, error) {
 	statCert, err := os.Stat(certPath)
 
 	if err != nil {
@@ -50,6 +54,7 @@ func NewSslCertificateLoader(certPath string, keyPath string, checkReloadSeconds
 	}
 
 	return &SslCertificateLoader{
+		logger:             logger,
 		certPath:           certPath,
 		keyPath:            keyPath,
 		cert:               &cer,
@@ -72,7 +77,7 @@ func (loader *SslCertificateLoader) RunReloadThread() {
 		statCert, err := os.Stat(loader.certPath)
 
 		if err != nil {
-			LogError(err, "Error loading SSL certificate")
+			loader.logger.Errorf("Error loading SSL certificate: %v", err)
 			continue
 		}
 
@@ -83,7 +88,7 @@ func (loader *SslCertificateLoader) RunReloadThread() {
 		keyModTime := statKey.ModTime()
 
 		if err != nil {
-			LogError(err, "Error loading SSL key")
+			loader.logger.Errorf("Error loading SSL key: %v", err)
 			continue
 		}
 
@@ -97,7 +102,7 @@ func (loader *SslCertificateLoader) RunReloadThread() {
 		cer, err := tls.LoadX509KeyPair(loader.certPath, loader.keyPath)
 
 		if err != nil {
-			LogError(err, "Error loading SSL key pair")
+			loader.logger.Errorf("Error loading SSL key pair: %v", err)
 			continue
 		}
 
@@ -111,7 +116,7 @@ func (loader *SslCertificateLoader) RunReloadThread() {
 
 		loader.certMu.Unlock()
 
-		LogInfo("Reloaded SSL certificates")
+		loader.logger.Info("Reloaded SSL certificates")
 	}
 }
 

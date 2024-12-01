@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/AgustinSRG/genv"
+	"github.com/AgustinSRG/glog"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 )
@@ -60,12 +61,16 @@ var TEST_STREAM_DATA_2 = []HlsFragment{
 	},
 }
 
-func testMain() {
+func testMain() *glog.Logger {
 	godotenv.Load() // Load env vars
 
-	// Configure logs
-	SetDebugLogEnabled(genv.GetEnvBool("LOG_DEBUG", false))
-	SetInfoLogEnabled(genv.GetEnvBool("LOG_INFO", true))
+	return glog.CreateRootLogger(glog.LoggerConfiguration{
+		ErrorEnabled:   genv.GetEnvBool("LOG_ERROR", true),
+		WarningEnabled: genv.GetEnvBool("LOG_WARNING", true),
+		InfoEnabled:    genv.GetEnvBool("LOG_INFO", true),
+		DebugEnabled:   genv.GetEnvBool("LOG_DEBUG", false),
+		TraceEnabled:   genv.GetEnvBool("LOG_TRACE", false),
+	}, glog.StandardLogFunction)
 }
 
 type PublisherSpectatorsSync struct {
@@ -103,7 +108,11 @@ func runTestPublisher(name string, serverUrl string, streamId string, dataToPubl
 
 	// Authenticate
 
-	authToken := signAuthToken(TEST_JWT_SECRET, "PUSH", streamId)
+	authToken, err := signAuthToken(TEST_JWT_SECRET, "PUSH", streamId)
+
+	if err != nil {
+		t.Error(err)
+	}
 
 	msg := WebsocketProtocolMessage{
 		MessageType: "PUSH",
@@ -206,7 +215,11 @@ func runTestSpectator(name string, serverUrl string, streamId string, dataToExpe
 
 	// Authenticate
 
-	authToken := signAuthToken(TEST_JWT_SECRET, "PULL", streamId)
+	authToken, err := signAuthToken(TEST_JWT_SECRET, "PULL", streamId)
+
+	if err != nil {
+		t.Error(err)
+	}
 
 	msg := WebsocketProtocolMessage{
 		MessageType: "PULL",
@@ -380,20 +393,20 @@ type TestServer struct {
 	url      string
 }
 
-func makeTestServer(publishRegistry *MockPublishRegistry, allowPush bool, relayFrom string) *TestServer {
+func makeTestServer(logger *glog.Logger, publishRegistry *MockPublishRegistry, allowPush bool, relayFrom string) *TestServer {
 	// Auth
 	authController := NewAuthController(AuthConfiguration{
 		PullSecret: TEST_JWT_SECRET,
 		PushSecret: TEST_JWT_SECRET,
 		AllowPush:  allowPush,
-	})
+	}, logger.CreateChildLogger("[Auth] "))
 
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		ExternalWebsocketUrl:    "",
 		HasPublishRegistry:      publishRegistry != nil,
-	}, publishRegistry)
+	}, publishRegistry, logger.CreateChildLogger("[Sources] "))
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
@@ -402,14 +415,15 @@ func makeTestServer(publishRegistry *MockPublishRegistry, allowPush bool, relayF
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		MaxBinaryMessageSize:    DEFAULT_MAX_BINARY_MSG_SIZE,
 		HasPublishRegistry:      publishRegistry != nil,
-	}, authController, publishRegistry)
+	}, authController, publishRegistry, logger.CreateChildLogger("[Relays] "))
 
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
 		// Other config
 		WebsocketPrefix:      "/",
 		MaxBinaryMessageSize: DEFAULT_MAX_BINARY_MSG_SIZE,
-	}, authController, sourcesController, relayController)
+		LogRequests:          true,
+	}, logger.CreateChildLogger("[Server] "), authController, sourcesController, relayController)
 
 	// Run test server
 
@@ -429,7 +443,7 @@ func (ts *TestServer) Close() {
 // Test a direct scenario
 // Publisher -> Server -> Spectator
 func TestDirectScenario(t *testing.T) {
-	testMain()
+	logger := testMain()
 
 	// Prepare mocks
 
@@ -437,7 +451,7 @@ func TestDirectScenario(t *testing.T) {
 
 	// Prepare servers
 
-	singleServer := makeTestServer(mockPublishRegistry, true, "")
+	singleServer := makeTestServer(logger.CreateChildLogger("[Single Server] "), mockPublishRegistry, true, "")
 	defer singleServer.Close()
 
 	// Run clients
@@ -475,7 +489,7 @@ func TestDirectScenario(t *testing.T) {
 // Test a scenario with 2 servers and a publish registry
 // Publisher -> Server1 -> Server2 -> Spectator
 func TestPublishRegistryScenario(t *testing.T) {
-	testMain()
+	logger := testMain()
 
 	// Prepare mocks
 
@@ -483,10 +497,10 @@ func TestPublishRegistryScenario(t *testing.T) {
 
 	// Prepare servers
 
-	server1 := makeTestServer(mockPublishRegistry, true, "")
+	server1 := makeTestServer(logger.CreateChildLogger("[Server 1] "), mockPublishRegistry, true, "")
 	defer server1.Close()
 
-	server2 := makeTestServer(mockPublishRegistry, true, "")
+	server2 := makeTestServer(logger.CreateChildLogger("[Server 2] "), mockPublishRegistry, true, "")
 	defer server2.Close()
 
 	// Run clients
@@ -524,7 +538,7 @@ func TestPublishRegistryScenario(t *testing.T) {
 // Test a scenario with 4 servers, 2 server to publish, 2 servers to relay from the publishers
 // Publisher -> PubServer1, PubServer2 -> RelayServer -> Spectator
 func TestThreeStepScenario(t *testing.T) {
-	testMain()
+	logger := testMain()
 
 	// Prepare mocks
 
@@ -532,16 +546,16 @@ func TestThreeStepScenario(t *testing.T) {
 
 	// Prepare servers
 
-	pubServer1 := makeTestServer(mockPublishRegistry, true, "")
+	pubServer1 := makeTestServer(logger.CreateChildLogger("[Pub Server 1] "), mockPublishRegistry, true, "")
 	defer pubServer1.Close()
 
-	pubServer2 := makeTestServer(mockPublishRegistry, true, "")
+	pubServer2 := makeTestServer(logger.CreateChildLogger("[Pub Server 2] "), mockPublishRegistry, true, "")
 	defer pubServer2.Close()
 
-	relayServer1 := makeTestServer(nil, false, pubServer1.url)
+	relayServer1 := makeTestServer(logger.CreateChildLogger("[Relay Server 1] "), nil, false, pubServer1.url)
 	defer relayServer1.Close()
 
-	relayServer2 := makeTestServer(nil, false, pubServer2.url)
+	relayServer2 := makeTestServer(logger.CreateChildLogger("[Relay Server 2] "), nil, false, pubServer2.url)
 	defer relayServer2.Close()
 
 	// Run clients

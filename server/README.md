@@ -51,10 +51,14 @@ You can configure the server using environment variables.
 
 ### Log configuration
 
-| Variable    | Description                                                                       |
-| ----------- | --------------------------------------------------------------------------------- |
-| `LOG_INFO`  | Can be `YES` or `NO`. Set it to `YES` in order to enable logging `INFO` messages  |
-| `LOG_DEBUG` | Can be `YES` or `NO`. Set it to `YES` in order to enable logging `DEBUG` messages |
+| Variable       | Description                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `LOG_ERROR`    | Can be `YES` or `NO`. Default: `YES`. Set it to `YES` in order to enable logging `ERROR` messages                  |
+| `LOG_WARNING`  | Can be `YES` or `NO`. Default: `YES`. Set it to `YES` in order to enable logging `WARNING` messages                |
+| `LOG_INFO`     | Can be `YES` or `NO`. Default: `YES`. Set it to `YES` in order to enable logging `INFO` messages                   |
+| `LOG_REQUESTS` | Can be `YES` or `NO`. Default: `YES`. Set it to `YES` in order to enable logging `INFO` messages for HTTP requests |
+| `LOG_DEBUG`    | Can be `YES` or `NO`. Default: `NO`. Set it to `YES` in order to enable logging `DEBUG` messages                   |
+| `LOG_TRACE`    | Can be `YES` or `NO`. Default: `NO`. Set it to `YES` in order to enable logging `TRACE` messages                   |
 
 ### Server configuration (HTTP)
 

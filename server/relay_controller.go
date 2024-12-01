@@ -2,7 +2,11 @@
 
 package main
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/AgustinSRG/glog"
+)
 
 // Relay controller configuration
 type RelayControllerConfig struct {
@@ -27,6 +31,9 @@ type RelayController struct {
 	// Configuration
 	config RelayControllerConfig
 
+	// Logger
+	logger *glog.Logger
+
 	// Mutex
 	mu *sync.Mutex
 
@@ -44,9 +51,10 @@ type RelayController struct {
 }
 
 // Creates an instance RelayController
-func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry PublishRegistry) *RelayController {
+func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry PublishRegistry, logger *glog.Logger) *RelayController {
 	return &RelayController{
 		config:          config,
+		logger:          logger,
 		mu:              &sync.Mutex{},
 		relays:          make(map[string]*HlsRelay),
 		authController:  authController,
@@ -119,17 +127,21 @@ func (rc *RelayController) RelayStream(streamId string) *HlsRelay {
 		pubRegUrl, err := rc.publishRegistry.GetPublishingServer(streamId)
 
 		if err != nil {
-			LogError(err, "[PUBLISH REG] Could not find publishing server for stream: "+streamId)
+			rc.logger.Errorf("Could not find publishing server for stream: %v, %v", streamId, err)
 		} else if pubRegUrl != "" {
 			relayUrl = pubRegUrl
 			onlySource = true
 
-			LogDebug("[PUBLISH REG] Found server for stream " + streamId + " -> " + pubRegUrl)
+			if rc.logger.Config.DebugEnabled {
+				rc.logger.Debugf("Found server for stream %v -> %v", streamId, pubRegUrl)
+			}
 		} else {
-			LogDebug("[PUBLISH REG] Could not find publishing server for stream: " + streamId)
+			if rc.logger.Config.DebugEnabled {
+				rc.logger.Debugf("Could not find publishing server for stream: %v", streamId)
+			}
 		}
 	} else {
-		LogDebug("[PUBLISH REG] No publish registry is configured")
+		rc.logger.Debug("No publish registry is configured")
 	}
 
 	if relayUrl == "" && rc.config.RelayFromEnabled {

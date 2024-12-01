@@ -2,18 +2,28 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/AgustinSRG/glog"
+)
 
 func TestSignFunctions(t *testing.T) {
 	secret := "test-secret"
 	streamId := "stream1"
 
-	tokenPull := signAuthToken(secret, "PULL", streamId)
+	tokenPull, err := signAuthToken(secret, "PULL", streamId)
+	if err != nil {
+		t.Error(err)
+	}
 	if !validateAuthToken(tokenPull, secret, "PULL", streamId) {
 		t.Errorf("Token does not pass validation: %v", tokenPull)
 	}
 
-	tokenPush := signAuthToken(secret, "PUSH", streamId)
+	tokenPush, err := signAuthToken(secret, "PUSH", streamId)
+	if err != nil {
+		t.Error(err)
+	}
 	if !validateAuthToken(tokenPush, secret, "PUSH", streamId) {
 		t.Errorf("Token does not pass validation: %v", tokenPush)
 	}
@@ -28,7 +38,10 @@ func TestSignFunctions(t *testing.T) {
 		t.Errorf("Invalid token passed validation: %v", tokenPull)
 	}
 
-	invalidTokenOther := signAuthToken("other-secret", "PULL", streamId)
+	invalidTokenOther, err := signAuthToken("other-secret", "PULL", streamId)
+	if err != nil {
+		t.Error(err)
+	}
 	if validateAuthToken(invalidTokenOther, secret, "PULL", streamId) {
 		t.Errorf("Invalid token passed validation: %v", invalidTokenOther)
 	}
@@ -43,14 +56,17 @@ func TestAuthController(t *testing.T) {
 		PullSecret: secretPull,
 		PushSecret: secretPush,
 		AllowPush:  true,
-	})
+	}, glog.CreateRootLogger(glog.CreateLoggerConfigurationFromLevel(glog.TRACE), glog.StandardLogFunction))
 
 	tokenPull := authController.CreatePullToken(streamId)
 	if !authController.ValidatePullToken(tokenPull, streamId) {
 		t.Errorf("Token does not pass validation: %v", tokenPull)
 	}
 
-	tokenPush := signAuthToken(secretPush, "PUSH", streamId)
+	tokenPush, err := signAuthToken(secretPush, "PUSH", streamId)
+	if err != nil {
+		t.Error(err)
+	}
 	if !authController.ValidatePushToken(tokenPush, streamId) {
 		t.Errorf("Token does not pass validation: %v", tokenPush)
 	}

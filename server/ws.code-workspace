@@ -10,9 +10,12 @@
         },
         "cSpell.words": [
             "asanrom",
+            "Debugf",
             "genv",
             "github",
+            "glog",
             "godotenv",
+            "Infof",
             "joho"
         ],
     }

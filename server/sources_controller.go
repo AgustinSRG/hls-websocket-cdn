@@ -2,7 +2,11 @@
 
 package main
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/AgustinSRG/glog"
+)
 
 // Configuration for the sources controller
 type SourcesControllerConfig struct {
@@ -21,6 +25,9 @@ type SourcesController struct {
 	// Mutex
 	mu *sync.Mutex
 
+	// Logger
+	logger *glog.Logger
+
 	// Publish registry
 	publishRegistry PublishRegistry
 
@@ -29,15 +36,20 @@ type SourcesController struct {
 
 	// Sources
 	sources map[string]*HlsSource
+
+	// ID for the next source
+	nextSourceId uint64
 }
 
 // Creates new instance of SourcesController
-func NewSourcesController(config SourcesControllerConfig, publishRegistry PublishRegistry) *SourcesController {
+func NewSourcesController(config SourcesControllerConfig, publishRegistry PublishRegistry, logger *glog.Logger) *SourcesController {
 	return &SourcesController{
 		mu:              &sync.Mutex{},
+		logger:          logger,
+		publishRegistry: publishRegistry,
 		config:          config,
 		sources:         make(map[string]*HlsSource),
-		publishRegistry: publishRegistry,
+		nextSourceId:    0,
 	}
 }
 
@@ -53,7 +65,12 @@ func (sc *SourcesController) GetSource(streamId string) *HlsSource {
 // Creates a source
 // May return nil if the streamId is already in use
 func (sc *SourcesController) CreateSource(streamId string) *HlsSource {
-	source := NewHlsSource(sc, streamId, sc.config.FragmentBufferMaxLength)
+	sc.mu.Lock()
+	sourceId := sc.nextSourceId
+	sc.nextSourceId++
+	sc.mu.Unlock()
+
+	source := NewHlsSource(sourceId, sc, streamId, sc.config.FragmentBufferMaxLength)
 
 	sc.mu.Lock()
 

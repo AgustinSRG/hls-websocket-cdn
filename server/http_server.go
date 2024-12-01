@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/AgustinSRG/glog"
 	"github.com/gorilla/websocket"
 )
 
@@ -50,12 +51,18 @@ type HttpServerConfig struct {
 
 	// Max binary message size
 	MaxBinaryMessageSize int64
+
+	// True to log requests
+	LogRequests bool
 }
 
 // HTTP websocket server
 type HttpServer struct {
 	// Server config
 	config HttpServerConfig
+
+	// Logger
+	logger *glog.Logger
 
 	// Mutex
 	mu *sync.Mutex
@@ -77,9 +84,10 @@ type HttpServer struct {
 }
 
 // Creates HTTP server
-func CreateHttpServer(config HttpServerConfig, authController *AuthController, sourceController *SourcesController, relayController *RelayController) *HttpServer {
+func CreateHttpServer(config HttpServerConfig, logger *glog.Logger, authController *AuthController, sourceController *SourcesController, relayController *RelayController) *HttpServer {
 	return &HttpServer{
 		config: config,
+		logger: logger,
 		upgrader: &websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -108,20 +116,22 @@ func (server *HttpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ip, _, err := net.SplitHostPort(req.RemoteAddr)
 
 	if err != nil {
-		LogError(err, "Error parsing request IP")
+		server.logger.Errorf("Error parsing request IP: %v", err)
 		w.WriteHeader(200)
 		fmt.Fprint(w, DEFAULT_HTTP_RESPONSE)
 		return
 	}
 
-	LogInfo("[HTTP] [FROM: " + ip + "] " + req.Method + " " + req.URL.Path)
+	if server.config.LogRequests {
+		server.logger.Infof("[HTTP] [FROM: %v] %v %v", ip, req.Method, req.URL.Path)
+	}
 
 	if strings.HasPrefix(req.URL.Path, server.config.WebsocketPrefix) {
 		// Upgrade connection
 
 		c, err := server.upgrader.Upgrade(w, req, nil)
 		if err != nil {
-			LogError(err, "Error upgrading connection")
+			server.logger.Errorf("Error upgrading connection: %v", err)
 			return
 		}
 
@@ -141,11 +151,11 @@ func (server *HttpServer) RunInsecure(wg *sync.WaitGroup) {
 	port := server.config.InsecurePort
 	bind_addr := server.config.BindAddress
 
-	LogInfo("[HTTP] Listening on " + bind_addr + ":" + strconv.Itoa(port))
+	server.logger.Infof("[HTTP] Listening on %v:%v", bind_addr, port)
 	errHTTP := http.ListenAndServe(bind_addr+":"+strconv.Itoa(port), server)
 
 	if errHTTP != nil {
-		LogError(errHTTP, "Error starting HTTP server")
+		server.logger.Errorf("Error starting HTTP server: %v", errHTTP)
 	}
 }
 
@@ -158,10 +168,10 @@ func (server *HttpServer) RunTls(wg *sync.WaitGroup) {
 	certFile := server.config.TlsCertificateFile
 	keyFile := server.config.TlsPrivateKeyFile
 
-	certificateLoader, err := NewSslCertificateLoader(certFile, keyFile, server.config.TlsCheckReloadSeconds)
+	certificateLoader, err := NewSslCertificateLoader(server.logger.CreateChildLogger("[CertificateLoader] "), certFile, keyFile, server.config.TlsCheckReloadSeconds)
 
 	if err != nil {
-		LogError(err, "Error starting HTTPS server")
+		server.logger.Errorf("Error starting HTTPS server: %v", err)
 		return
 	}
 
@@ -175,12 +185,12 @@ func (server *HttpServer) RunTls(wg *sync.WaitGroup) {
 		},
 	}
 
-	LogInfo("[HTTPS] Listening on " + bind_addr + ":" + strconv.Itoa(port))
+	server.logger.Infof("[HTTPS] Listening on %v:%v", bind_addr, port)
 
 	errSSL := tlsServer.ListenAndServeTLS("", "")
 
 	if errSSL != nil {
-		LogError(errSSL, "Error starting HTTPS server")
+		server.logger.Errorf("Error starting HTTPS server: %v", errSSL)
 	}
 }
 

@@ -23,7 +23,7 @@ func (server *HttpServer) RunTestServer() (string, net.Listener) {
 
 	server.sourceController.config.ExternalWebsocketUrl = url
 
-	LogDebug("Using port for test server: " + fmt.Sprint(port))
+	server.logger.Debugf("Using port for test server: %v", port)
 
 	return url, listener
 }

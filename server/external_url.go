@@ -8,11 +8,12 @@ import (
 	"net"
 
 	"github.com/AgustinSRG/genv"
+	"github.com/AgustinSRG/glog"
 )
 
 // Figures out the external websocket URL of the server
 // It must be used when publishing to register the server in the publish registry database
-func FigureOutExternalServerWebsocketUrl() string {
+func FigureOutExternalServerWebsocketUrl(logger *glog.Logger) string {
 	customExternalWebsocketUrl := genv.GetEnvString("EXTERNAL_WEBSOCKET_URL", "")
 
 	if customExternalWebsocketUrl != "" {
@@ -40,7 +41,7 @@ func FigureOutExternalServerWebsocketUrl() string {
 	networkInterfaces, err := net.Interfaces()
 
 	if err != nil {
-		LogError(err, "Error loading network interfaces")
+		logger.Errorf("Error loading network interfaces: %v", err)
 		return ""
 	}
 
@@ -49,7 +50,7 @@ func FigureOutExternalServerWebsocketUrl() string {
 	_, badRange, err := net.ParseCIDR("169.254.0.0/16")
 
 	if err != nil {
-		LogError(err, "Error loading network interfaces")
+		logger.Errorf("Error loading network interfaces: %v", err)
 		return ""
 	}
 
@@ -57,7 +58,7 @@ func FigureOutExternalServerWebsocketUrl() string {
 		addrs, err := i.Addrs()
 
 		if err != nil {
-			LogError(err, "Error loading addresses from network interface")
+			logger.Errorf("Error loading addresses from network interface: %v", err)
 			continue
 		}
 

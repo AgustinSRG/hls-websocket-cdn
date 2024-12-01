@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AgustinSRG/glog"
 	"github.com/gorilla/websocket"
 )
 
@@ -33,6 +34,9 @@ type ConnectionHandler struct {
 
 	// HTTP server
 	server *HttpServer
+
+	// Logger
+	logger *glog.Logger
 
 	// Mutex for the struct
 	mu *sync.Mutex
@@ -68,6 +72,7 @@ func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *Connecti
 		id:                        0,
 		connection:                conn,
 		server:                    server,
+		logger:                    server.logger,
 		mu:                        &sync.Mutex{},
 		heartbeatInterruptChannel: make(chan bool, 1),
 		closed:                    false,
@@ -78,21 +83,6 @@ func CreateConnectionHandler(conn *websocket.Conn, server *HttpServer) *Connecti
 		currentFragmentToPush:     nil,
 		pullingInterruptChannel:   nil,
 	}
-}
-
-// Logs error message for the connection
-func (ch *ConnectionHandler) LogError(err error, msg string) {
-	LogError(err, "[Request: "+fmt.Sprint(ch.id)+"] "+msg)
-}
-
-// Logs info message for the connection
-func (ch *ConnectionHandler) LogInfo(msg string) {
-	LogInfo("[Request: " + fmt.Sprint(ch.id) + "] " + msg)
-}
-
-// Logs debug message for the connection
-func (ch *ConnectionHandler) LogDebug(msg string) {
-	LogDebug("[Request: " + fmt.Sprint(ch.id) + "] " + msg)
 }
 
 // Called after the connection is closed
@@ -112,7 +102,7 @@ func (ch *ConnectionHandler) onClose() {
 			ch.sourceToPush = nil
 		}
 
-		ch.LogInfo("Source closed due to connection closed.")
+		ch.logger.Info("Source closed due to connection closed.")
 	} else if ch.mode == CONNECTION_MODE_PULL {
 		if ch.pullingInterruptChannel != nil {
 			ch.pullingInterruptChannel <- true
@@ -129,11 +119,11 @@ func (ch *ConnectionHandler) Run() {
 		if err := recover(); err != nil {
 			switch x := err.(type) {
 			case string:
-				ch.LogError(nil, "Error: "+x)
+				ch.logger.Errorf("Error: %v", x)
 			case error:
-				ch.LogError(x, "Connection closed with error")
+				ch.logger.Errorf("Connection closed with error: %v", x)
 			default:
-				ch.LogError(nil, "Connection Crashed!")
+				ch.logger.Error("Connection Crashed!")
 			}
 		}
 		// Ensure connection is closed
@@ -141,13 +131,16 @@ func (ch *ConnectionHandler) Run() {
 		// Release resources
 		ch.onClose()
 		// Log
-		ch.LogInfo("Connection closed.")
+		ch.logger.Info("Connection closed.")
 	}()
 
 	// Get a connection ID
 	ch.id = ch.server.GetConnectionId()
 
-	ch.LogInfo("Connection established.")
+	// Update logger
+	ch.logger = ch.server.logger.CreateChildLogger("[#" + fmt.Sprint(ch.id) + "] ")
+
+	ch.logger.Info("Connection established.")
 
 	go ch.sendHeartbeatMessages() // Start heartbeat sending
 
@@ -193,15 +186,15 @@ func (ch *ConnectionHandler) ReadTextMessage() bool {
 		return false
 	}
 
-	if log_debug_enabled {
-		ch.LogDebug("<<< \n" + string(message))
+	if ch.logger.Config.TraceEnabled {
+		ch.logger.Trace("<<< " + string(message))
 	}
 
 	parsedMessage := ParseWebsocketProtocolMessage(string(message))
 
 	switch parsedMessage.MessageType {
 	case "E":
-		ch.LogDebug("Error from client. Code: " + parsedMessage.GetParameter("code") + ", Message: " + parsedMessage.GetParameter("message"))
+		ch.logger.Debugf("Error from client. Code: %v Message: %v", parsedMessage.GetParameter("code"), parsedMessage.GetParameter("message"))
 		return false
 	case "PULL":
 		return ch.HandlePull(parsedMessage)
@@ -233,7 +226,7 @@ func (ch *ConnectionHandler) ReadBinaryMessage() bool {
 	mt, message, err := ch.connection.ReadMessage()
 
 	if err != nil {
-		ch.LogError(err, "Error reading binary message")
+		ch.logger.Errorf("Error reading binary message: %v", err)
 		return false
 	}
 
@@ -298,8 +291,8 @@ func (ch *ConnectionHandler) Send(msg *WebsocketProtocolMessage) {
 		return
 	}
 
-	if log_debug_enabled {
-		ch.LogDebug(">>> " + msg.Serialize())
+	if ch.logger.Config.TraceEnabled {
+		ch.logger.Trace(">>> " + msg.Serialize())
 	}
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
@@ -314,9 +307,9 @@ func (ch *ConnectionHandler) SendWithBinary(msg *WebsocketProtocolMessage, binar
 		return
 	}
 
-	if log_debug_enabled {
-		ch.LogDebug(">>> " + msg.Serialize())
-		ch.LogDebug(">>>[BINARY] " + fmt.Sprint(len(binaryData)) + " bytes")
+	if ch.logger.Config.TraceEnabled {
+		ch.logger.Trace(">>> " + msg.Serialize())
+		ch.logger.Trace(">>> [BINARY] " + fmt.Sprint(len(binaryData)) + " bytes")
 	}
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
@@ -336,8 +329,8 @@ func (ch *ConnectionHandler) SendClose() {
 		MessageType: "CLOSE",
 	}
 
-	if log_debug_enabled {
-		ch.LogDebug(">>> " + msg.Serialize())
+	if ch.logger.Config.TraceEnabled {
+		ch.logger.Trace(">>> " + msg.Serialize())
 	}
 
 	ch.connection.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
@@ -492,7 +485,6 @@ func (ch *ConnectionHandler) HandlePush(msg *WebsocketProtocolMessage) bool {
 
 	ch.sourceToPush = hlsSource
 
-	hlsSource.Announce()
 	go hlsSource.PeriodicallyAnnounce()
 
 	// Switch mode

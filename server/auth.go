@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AgustinSRG/glog"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Signs auth token
-func signAuthToken(secret string, action string, streamId string) string {
+func signAuthToken(secret string, action string, streamId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": action + ":" + streamId,
 		"exp": time.Now().Add(1 * time.Hour).Unix(),
@@ -19,10 +20,10 @@ func signAuthToken(secret string, action string, streamId string) string {
 	tokenString, err := token.SignedString([]byte(secret))
 
 	if err != nil {
-		LogError(err, "Error signing token")
+		return "", err
 	}
 
-	return tokenString
+	return tokenString, nil
 }
 
 // Validates authentication token
@@ -75,23 +76,28 @@ type AuthConfiguration struct {
 }
 
 // Creates new instance of AuthController
-func NewAuthController(config AuthConfiguration) *AuthController {
+func NewAuthController(config AuthConfiguration, logger *glog.Logger) *AuthController {
 	if config.PullSecret == "" {
-		LogWarning("PULL_SECRET is empty. This means authentication is disabled for pulling streams.")
+		logger.Warning("PULL_SECRET is empty. This means authentication is disabled for pulling streams.")
 	}
 
 	if config.PushSecret == "" {
-		LogWarning("PUSH_SECRET is empty. This means authentication is disabled for pushing streams.")
+		logger.Warning("PUSH_SECRET is empty. This means authentication is disabled for pushing streams.")
 	}
 
 	return &AuthController{
 		config: config,
+		logger: logger,
 	}
 }
 
 // Auth controller
 type AuthController struct {
+	// Configuration
 	config AuthConfiguration
+
+	// Logger
+	logger *glog.Logger
 }
 
 // Checks if PUSH is allowed
@@ -112,7 +118,13 @@ func (ac *AuthController) CreatePullToken(streamId string) string {
 	if ac.config.PullSecret == "" {
 		return ""
 	}
-	return signAuthToken(ac.config.PullSecret, "PULL", streamId)
+	token, err := signAuthToken(ac.config.PullSecret, "PULL", streamId)
+
+	if err != nil {
+		ac.logger.Errorf("Error signing token: %v", err)
+	}
+
+	return token
 }
 
 // Validates PUSH token
