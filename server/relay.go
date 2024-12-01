@@ -251,16 +251,6 @@ func (relay *HlsRelay) IsClosed() bool {
 // (run in a sub-routine)
 func (relay *HlsRelay) Run() {
 	defer func() {
-		if err := recover(); err != nil {
-			switch x := err.(type) {
-			case string:
-				relay.logger.Errorf("Error: %v", x)
-			case error:
-				relay.logger.Errorf("Relay connection closed with error: %v", x)
-			default:
-				relay.logger.Error("Relay connection Crashed!")
-			}
-		}
 		// Ensure connection is closed
 		if relay.socket != nil {
 			relay.socket.Close()

@@ -116,16 +116,6 @@ func (ch *ConnectionHandler) onClose() {
 // Runs connection handler
 func (ch *ConnectionHandler) Run() {
 	defer func() {
-		if err := recover(); err != nil {
-			switch x := err.(type) {
-			case string:
-				ch.logger.Errorf("Error: %v", x)
-			case error:
-				ch.logger.Errorf("Connection closed with error: %v", x)
-			default:
-				ch.logger.Error("Connection Crashed!")
-			}
-		}
 		// Ensure connection is closed
 		ch.connection.Close()
 		// Release resources
