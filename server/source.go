@@ -200,10 +200,16 @@ func (source *HlsSource) AddFragment(frag *HlsFragment) {
 
 	// Append the fragment to the buffer
 
-	if len(source.fragmentBuffer) >= source.fragmentBufferMaxLength && len(source.fragmentBuffer) > 0 {
-		source.fragmentBuffer = append(source.fragmentBuffer[1:], frag)
+	newFragmentBuffer, canAdd := source.controller.memoryLimiter.CheckBeforeAddingFragment(source.fragmentBuffer, frag)
+
+	if canAdd {
+		if len(source.fragmentBuffer) >= source.fragmentBufferMaxLength && len(source.fragmentBuffer) > 0 {
+			source.fragmentBuffer = append(source.fragmentBuffer[1:], frag)
+		} else {
+			source.fragmentBuffer = append(source.fragmentBuffer, frag)
+		}
 	} else {
-		source.fragmentBuffer = append(source.fragmentBuffer, frag)
+		source.fragmentBuffer = newFragmentBuffer
 	}
 
 	// Send fragment to the listeners

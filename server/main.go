@@ -68,12 +68,18 @@ func main() {
 		AllowPush:  genv.GetEnvBool("PUSH_ALLOWED", true),
 	}, logger.CreateChildLogger("[Auth] "))
 
+	// Memory limiter
+	memoryLimiter := NewFragmentBufferMemoryLimiter(FragmentBufferMemoryLimiterConfig{
+		Enabled: genv.GetEnvBool("BUFFER_MEMORY_LIMITER_ENABLED", false),
+		Limit:   genv.GetEnvInt64("BUFFER_MEMORY_LIMIT_MB", 256) * 1024 * 1024,
+	})
+
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		ExternalWebsocketUrl:    externalWebsocketUrl,
 		HasPublishRegistry:      publishRegistry != nil,
-	}, publishRegistry, logger.CreateChildLogger("[Sources] "))
+	}, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Sources] "))
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
@@ -82,7 +88,7 @@ func main() {
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
 		HasPublishRegistry:      publishRegistry != nil,
-	}, authController, publishRegistry, logger.CreateChildLogger("[Relays] "))
+	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{

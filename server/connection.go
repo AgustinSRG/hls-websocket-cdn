@@ -128,7 +128,7 @@ func (ch *ConnectionHandler) Run() {
 	ch.id = ch.server.GetConnectionId()
 
 	// Update logger
-	ch.logger = ch.server.logger.CreateChildLogger("[#" + fmt.Sprint(ch.id) + "] ")
+	ch.logger = ch.server.logger.CreateChildLogger("[Conn #" + fmt.Sprint(ch.id) + "] ")
 
 	ch.logger.Info("Connection established.")
 

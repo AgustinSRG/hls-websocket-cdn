@@ -113,6 +113,19 @@ You can configure the server using environment variables.
 | `PUSH_SECRET`  | Secret to sign and validate the authentication tokens for pushing the streams. |
 | `PUSH_ALLOWED` | Can be `YES` or `NO`. Set it to `YES` to allow pushing streams to the server.  |
 
+### Memory limiter
+
+By default, the server will store fragments in a buffer to send to new clients immediately. However, this can increase the memory usage, and result in a crash if the machine memory is fully used.
+
+To prevent, that, the server allows you to configure a limit. When this limit is reached, the buffering will be degraded, but the CDN will still work. The impact on the user will be only a later wait time to play the stream when they connect.
+
+Make sure to not set the limit too close to the total memory of the machine, as memory is also needed for other tasks and processes.
+
+| Variable                        | Description                                                         |
+| ------------------------------- | ------------------------------------------------------------------- |
+| `BUFFER_MEMORY_LIMITER_ENABLED` | Can be `YES` or `NO`. Set it to `YES` to enable the memory limiter. |
+| `BUFFER_MEMORY_LIMIT_MB`        | Memory limit for fragment buffers in megabytes. Default: `256`      |
+
 ## Other options
 
 | Variable                     | Description                                                                           |

@@ -7,3 +7,7 @@
 # Configuration
 
 .env
+
+# Coverage
+
+*.out

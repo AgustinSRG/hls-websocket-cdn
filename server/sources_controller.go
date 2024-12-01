@@ -31,6 +31,9 @@ type SourcesController struct {
 	// Publish registry
 	publishRegistry PublishRegistry
 
+	// Memory limiter for fragment buffers
+	memoryLimiter *FragmentBufferMemoryLimiter
+
 	// Configuration
 	config SourcesControllerConfig
 
@@ -42,11 +45,12 @@ type SourcesController struct {
 }
 
 // Creates new instance of SourcesController
-func NewSourcesController(config SourcesControllerConfig, publishRegistry PublishRegistry, logger *glog.Logger) *SourcesController {
+func NewSourcesController(config SourcesControllerConfig, publishRegistry PublishRegistry, memoryLimiter *FragmentBufferMemoryLimiter, logger *glog.Logger) *SourcesController {
 	return &SourcesController{
 		mu:              &sync.Mutex{},
 		logger:          logger,
 		publishRegistry: publishRegistry,
+		memoryLimiter:   memoryLimiter,
 		config:          config,
 		sources:         make(map[string]*HlsSource),
 		nextSourceId:    0,

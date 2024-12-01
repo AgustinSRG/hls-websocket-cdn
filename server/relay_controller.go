@@ -48,10 +48,13 @@ type RelayController struct {
 
 	// Publish registry
 	publishRegistry PublishRegistry
+
+	// Memory limiter for fragment buffers
+	memoryLimiter *FragmentBufferMemoryLimiter
 }
 
 // Creates an instance RelayController
-func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry PublishRegistry, logger *glog.Logger) *RelayController {
+func NewRelayController(config RelayControllerConfig, authController *AuthController, publishRegistry PublishRegistry, memoryLimiter *FragmentBufferMemoryLimiter, logger *glog.Logger) *RelayController {
 	return &RelayController{
 		config:          config,
 		logger:          logger,
@@ -59,6 +62,7 @@ func NewRelayController(config RelayControllerConfig, authController *AuthContro
 		relays:          make(map[string]*HlsRelay),
 		authController:  authController,
 		publishRegistry: publishRegistry,
+		memoryLimiter:   memoryLimiter,
 	}
 }
 

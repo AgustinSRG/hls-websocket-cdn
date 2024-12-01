@@ -204,10 +204,16 @@ func (relay *HlsRelay) AddFragment(frag *HlsFragment) {
 
 	// Append the fragment to the buffer
 
-	if len(relay.fragmentBuffer) >= relay.fragmentBufferMaxLength && len(relay.fragmentBuffer) > 0 {
-		relay.fragmentBuffer = append(relay.fragmentBuffer[1:], frag)
+	newFragmentBuffer, canAdd := relay.controller.memoryLimiter.CheckBeforeAddingFragment(relay.fragmentBuffer, frag)
+
+	if canAdd {
+		if len(relay.fragmentBuffer) >= relay.fragmentBufferMaxLength && len(relay.fragmentBuffer) > 0 {
+			relay.fragmentBuffer = append(relay.fragmentBuffer[1:], frag)
+		} else {
+			relay.fragmentBuffer = append(relay.fragmentBuffer, frag)
+		}
 	} else {
-		relay.fragmentBuffer = append(relay.fragmentBuffer, frag)
+		relay.fragmentBuffer = newFragmentBuffer
 	}
 
 	// Send fragment to the listeners
@@ -237,6 +243,9 @@ func (relay *HlsRelay) onClose() {
 
 	// Unregister
 	relay.controller.OnRelayClosed(relay)
+
+	// Release memory
+	relay.controller.memoryLimiter.OnBufferRelease(relay.fragmentBuffer)
 }
 
 // Gets true of the relay is closed

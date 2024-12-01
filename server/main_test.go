@@ -401,12 +401,18 @@ func makeTestServer(logger *glog.Logger, publishRegistry *MockPublishRegistry, a
 		AllowPush:  allowPush,
 	}, logger.CreateChildLogger("[Auth] "))
 
+	// Memory limiter
+	memoryLimiter := NewFragmentBufferMemoryLimiter(FragmentBufferMemoryLimiterConfig{
+		Enabled: false,
+		Limit:   0,
+	})
+
 	// Sources controller
 	sourcesController := NewSourcesController(SourcesControllerConfig{
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		ExternalWebsocketUrl:    "",
 		HasPublishRegistry:      publishRegistry != nil,
-	}, publishRegistry, logger.CreateChildLogger("[Sources] "))
+	}, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Sources] "))
 
 	// Relay controller
 	relayController := NewRelayController(RelayControllerConfig{
@@ -415,7 +421,7 @@ func makeTestServer(logger *glog.Logger, publishRegistry *MockPublishRegistry, a
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		MaxBinaryMessageSize:    DEFAULT_MAX_BINARY_MSG_SIZE,
 		HasPublishRegistry:      publishRegistry != nil,
-	}, authController, publishRegistry, logger.CreateChildLogger("[Relays] "))
+	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 
 	// Setup server
 	server := CreateHttpServer(HttpServerConfig{
