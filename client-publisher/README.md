@@ -28,12 +28,12 @@ import (
 	"time"
 
     // Import the module
-    "github.com/AgustinSRG/hls-websocket-cdn/client-publisher"
+    clientpublisher "github.com/AgustinSRG/hls-websocket-cdn/client-publisher"
 )
 
 func main() {
     // Create publisher instance
-	publisher := NewHlsWebSocketPublisher(HlsWebSocketPublisherConfiguration{
+	publisher := clientpublisher.NewHlsWebSocketPublisher(clientpublisher.HlsWebSocketPublisherConfiguration{
 		// URL of the CDN server
 		ServerUrl: "ws://127.0.0.1/",
 		// ID of the stream to publish
