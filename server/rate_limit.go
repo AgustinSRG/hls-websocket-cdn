@@ -241,6 +241,8 @@ func (rl *RateLimiter) CountRequest(ipStr string) bool {
 			}
 		}
 
+		rl.lastCleanup = now
+
 		rl.logger.Debugf("Cleanup finished. Total counters removed: %v", delCount)
 	}
 
