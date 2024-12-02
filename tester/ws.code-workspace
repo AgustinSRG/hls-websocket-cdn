@@ -1,0 +1,19 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "*.exe": true,
+        },
+        "cSpell.words": [
+            "genv",
+            "github",
+            "glog",
+            "godotenv",
+            "joho"
+        ],
+    }
+}

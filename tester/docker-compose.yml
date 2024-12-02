@@ -1,0 +1,75 @@
+version: '3.7'
+
+services:
+
+  publish_registry:
+    image: 'redis:latest'
+    hostname: publish-registry
+    ports:
+      - '6379'
+    networks:
+     - hls_cdn_test_network
+  
+  server1:
+    image: 'asanrom/hls-websocket-cdn'
+    hostname: server1
+    ports:
+      - "8081:80"
+    networks:
+      - hls_cdn_test_network
+    environment:
+      - EXTERNAL_WEBSOCKET_URL=ws://server1/
+      - PUB_REG_REDIS_ENABLED=YES
+      - PUB_REG_REDIS_HOST=publish-registry
+      - PULL_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_ALLOWED=YES
+
+  server2:
+    image: 'asanrom/hls-websocket-cdn'
+    hostname: server2
+    ports:
+      - "8082:80"
+    networks:
+      - hls_cdn_test_network
+    environment:
+      - EXTERNAL_WEBSOCKET_URL=ws://server2/
+      - PUB_REG_REDIS_ENABLED=YES
+      - PUB_REG_REDIS_HOST=publish-registry
+      - PULL_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_ALLOWED=YES
+
+  relay1:
+    image: 'asanrom/hls-websocket-cdn'
+    hostname: relay1
+    ports:
+      - "8083:80"
+    networks:
+      - hls_cdn_test_network
+    environment:
+      - PUB_REG_REDIS_ENABLED=NO
+      - PULL_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_ALLOWED=NO
+      - RELAY_FROM_ENABLED=YES
+      - RELAY_FROM_URL=ws://server1/
+
+  relay2:
+    image: 'asanrom/hls-websocket-cdn'
+    hostname: relay2
+    ports:
+      - "8084:80"
+    networks:
+      - hls_cdn_test_network
+    environment:
+      - PUB_REG_REDIS_ENABLED=NO
+      - PULL_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_SECRET=${SHARED_SECRET:-demosecret}
+      - PUSH_ALLOWED=NO
+      - RELAY_FROM_ENABLED=YES
+      - RELAY_FROM_URL=ws://server2/
+
+
+networks:
+  hls_cdn_test_network:

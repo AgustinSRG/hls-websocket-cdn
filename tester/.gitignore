@@ -1,0 +1,9 @@
+# Compiled
+
+/tester
+/tester.exe
+*.exe
+
+# Configuration
+
+.env
