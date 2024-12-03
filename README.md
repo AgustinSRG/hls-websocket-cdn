@@ -7,6 +7,7 @@ The project incudes the following components:
  - [Server](./server/) - The main backend component of the CDN, implemented in the [Go](https://go.dev/) programming language.
  - [Javascript client](./client-js/) - A JavasScript client for browsers to be able to receive the streams.
  - [Publisher client library](./client-publisher/) - A library to publish to the CDN, implemented in the [Go](https://go.dev/) programming language.
+ - [Tester](./tester/) - Test program to publish video files in loop and spectate from a browser.
 
 ## Design
 
