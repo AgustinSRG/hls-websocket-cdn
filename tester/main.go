@@ -43,7 +43,28 @@ func main() {
 }
 
 func runSpectator(args *TesterArguments, logger *glog.Logger) {
-	// TODO
+	// Check for bundle
+
+	if !CheckFileExists(args.ClientJavaScriptBundle) {
+		fmt.Println("Could not find the JavaScript bundle: " + args.ClientJavaScriptBundle)
+		fmt.Println("Make sure to compile the JavaScript client before running the tester.")
+		fmt.Println("You can change the bundle location with the --js-bundle option")
+		return
+	}
+
+	// Check args
+
+	if args.Url == "" {
+		fmt.Println("Please, provide the server URL with the --url option")
+		return
+	}
+
+	if args.StreamId == "" {
+		fmt.Println("Please, provide the stream ID with the --id option")
+		return
+	}
+
+	spectateStream(logger, args.ClientJavaScriptBundle, args.Url, args.StreamId, args.Secret)
 }
 
 func runPublisher(args *TesterArguments, logger *glog.Logger) {
