@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/AgustinSRG/glog"
+	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	clientpublisher "github.com/AgustinSRG/hls-websocket-cdn/client-publisher"
 )
 
@@ -279,6 +280,13 @@ func publishStream(logger *glog.Logger, ffmpegPath string, videoPath string, url
 
 	// Prepare FFmpeg command
 
+	err = child_process_manager.InitializeChildProcessManager()
+	if err != nil {
+		panic(err)
+	}
+
+	defer child_process_manager.DisposeChildProcessManager()
+
 	cmd := exec.Command(ffmpegPath)
 
 	cmd.Args = make([]string, 1)
@@ -297,6 +305,11 @@ func publishStream(logger *glog.Logger, ffmpegPath string, videoPath string, url
 	cmd.Args = append(cmd.Args, "-method", "PUT")
 	cmd.Args = append(cmd.Args, "-hls_segment_filename", "http://127.0.0.1:"+fmt.Sprint(port)+"/hls/%d.ts")
 	cmd.Args = append(cmd.Args, "http://127.0.0.1:"+fmt.Sprint(port)+"/hls/index.m3u8")
+
+	err = child_process_manager.ConfigureCommand(cmd)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create a pipe to read StdErr
 	pipe, err := cmd.StderrPipe()
@@ -323,7 +336,18 @@ func publishStream(logger *glog.Logger, ffmpegPath string, videoPath string, url
 		}
 	}()
 
-	// Run process
+	// Start process
 
-	cmd.Run()
+	cmd.Start()
+
+	// Add process as a child process
+	err = child_process_manager.AddChildProcess(cmd.Process)
+	if err != nil {
+		cmd.Process.Kill() // We must kill the process if this fails
+		panic(err)
+	}
+
+	// Wait for it to finish
+
+	cmd.Wait()
 }
