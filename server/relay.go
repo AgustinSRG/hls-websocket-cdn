@@ -102,15 +102,19 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 
 // Waits until the relay is ready (either connected or closed)
 func (relay *HlsRelay) WaitUntilReady() {
+	shouldWait := false
+
 	relay.mu.Lock()
 
-	if relay.ready {
-		return
+	if !relay.ready {
+		shouldWait = true
 	}
 
 	relay.mu.Unlock()
 
-	relay.readyWaitGroup.Wait() // Wait for ready
+	if shouldWait {
+		relay.readyWaitGroup.Wait() // Wait for ready
+	}
 }
 
 // Sets relay status to ready
@@ -173,6 +177,10 @@ func (relay *HlsRelay) Close() {
 		return
 	}
 
+	if relay.logger.Config.DebugEnabled {
+		relay.logger.Debug("Relay closed")
+	}
+
 	closeEvent := HlsEvent{
 		EventType: HLS_EVENT_TYPE_CLOSE,
 	}
@@ -216,6 +224,10 @@ func (relay *HlsRelay) AddFragment(frag *HlsFragment) {
 		relay.fragmentBuffer = newFragmentBuffer
 	}
 
+	if relay.logger.Config.DebugEnabled {
+		relay.logger.Debugf("Fragment relayed. Duration: %v, Size: %v", frag.Duration, len(frag.Data))
+	}
+
 	// Send fragment to the listeners
 
 	fragmentEvent := HlsEvent{
@@ -224,7 +236,10 @@ func (relay *HlsRelay) AddFragment(frag *HlsFragment) {
 	}
 
 	for _, lis := range relay.listeners {
-		lis.Channel <- fragmentEvent
+		select {
+		case lis.Channel <- fragmentEvent:
+		default:
+		}
 	}
 }
 
@@ -453,6 +468,10 @@ func (relay *HlsRelay) ReadBinaryMessage(socket *websocket.Conn) bool {
 		return false
 	}
 
+	if relay.logger.Config.TraceEnabled {
+		relay.logger.Trace("<<< [BINARY] " + fmt.Sprint(len(message)) + " bytes")
+	}
+
 	relay.currentFragment.Data = message
 
 	relay.AddFragment(relay.currentFragment)
@@ -501,6 +520,10 @@ func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
 				MessageType: "H",
 			}
 
+			if relay.logger.Config.TraceEnabled {
+				relay.logger.Trace(">>> " + msg.Serialize())
+			}
+
 			_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 		}
 
@@ -512,7 +535,7 @@ func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
 
 func (relay *HlsRelay) checkInactivity() bool {
 	relay.mu.Lock()
-	defer relay.mu.Lock()
+	defer relay.mu.Unlock()
 
 	if len(relay.listeners) == 0 {
 		if relay.inactivityWarning {

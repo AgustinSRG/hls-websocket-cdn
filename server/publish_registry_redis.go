@@ -74,7 +74,7 @@ func (pr *RedisPublishRegistry) GetPublishingServer(streamId string) (string, er
 		return "", res.Err()
 	}
 
-	return res.String(), nil
+	return res.Val(), nil
 }
 
 // Announces to the publish database that this server [url]

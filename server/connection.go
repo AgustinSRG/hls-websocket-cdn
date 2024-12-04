@@ -237,6 +237,10 @@ func (ch *ConnectionHandler) ReadBinaryMessage() bool {
 		return false
 	}
 
+	if ch.logger.Config.TraceEnabled {
+		ch.logger.Trace("<<< [BINARY] " + fmt.Sprint(len(message)) + " bytes")
+	}
+
 	ch.currentFragmentToPush.Data = message
 
 	ch.sourceToPush.AddFragment(ch.currentFragmentToPush)
