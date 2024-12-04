@@ -40,13 +40,13 @@ Options:
 Example command to publish a video file in a loop:
 
 ```sh
-./tester publish -u ws://127.0.0.1/ -i test -s secret -v /path/to/video.mp4 --debug
+./tester publish -u ws://127.0.0.1:8081/ -i test -s secret -v /path/to/video.mp4 --debug
 ```
 
 Example command to serve a client to spectate:
 
 ```sh
-./tester spectate -u ws://127.0.0.1/ -i test -s secret --debug
+./tester spectate -u ws://127.0.0.1:8084/ -i test -s secret --debug
 ```
 
 # Run a test network with Docker Compose

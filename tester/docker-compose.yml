@@ -24,6 +24,8 @@ services:
       - PULL_SECRET=${SHARED_SECRET:-demosecret}
       - PUSH_SECRET=${SHARED_SECRET:-demosecret}
       - PUSH_ALLOWED=YES
+      - LOG_DEBUG=YES
+      - LOG_TRACE=YES
 
   server2:
     image: 'asanrom/hls-websocket-cdn'
@@ -39,6 +41,8 @@ services:
       - PULL_SECRET=${SHARED_SECRET:-demosecret}
       - PUSH_SECRET=${SHARED_SECRET:-demosecret}
       - PUSH_ALLOWED=YES
+      - LOG_DEBUG=YES
+      - LOG_TRACE=YES
 
   relay1:
     image: 'asanrom/hls-websocket-cdn'
@@ -54,6 +58,8 @@ services:
       - PUSH_ALLOWED=NO
       - RELAY_FROM_ENABLED=YES
       - RELAY_FROM_URL=ws://server1/
+      - LOG_DEBUG=YES
+      - LOG_TRACE=YES
 
   relay2:
     image: 'asanrom/hls-websocket-cdn'
@@ -69,6 +75,8 @@ services:
       - PUSH_ALLOWED=NO
       - RELAY_FROM_ENABLED=YES
       - RELAY_FROM_URL=ws://server2/
+      - LOG_DEBUG=YES
+      - LOG_TRACE=YES
 
 
 networks:
