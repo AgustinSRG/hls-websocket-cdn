@@ -16,6 +16,9 @@ const DEFAULT_MAX_BINARY_MSG_SIZE = 50 * 1024 * 1024
 // Default fragment buffer max length
 const DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH = 10
 
+// Default inactivity period for relays
+const RELAY_DEFAULT_INACTIVITY_PERIOD = 30
+
 // Main
 func main() {
 	_ = godotenv.Load() // Load env vars
@@ -87,6 +90,7 @@ func main() {
 		RelayFromEnabled:        genv.GetEnvBool("RELAY_FROM_ENABLED", false),
 		FragmentBufferMaxLength: genv.GetEnvInt("FRAGMENT_BUFFER_MAX_LENGTH", DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH),
 		MaxBinaryMessageSize:    genv.GetEnvInt64("MAX_BINARY_MESSAGE_SIZE", DEFAULT_MAX_BINARY_MSG_SIZE),
+		InactivityPeriodSeconds: genv.GetEnvInt("RELAY_INACTIVITY_PERIOD_SEC", RELAY_DEFAULT_INACTIVITY_PERIOD),
 		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 

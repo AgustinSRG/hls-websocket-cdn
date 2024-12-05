@@ -143,9 +143,10 @@ Make sure to not set the limit too close to the total memory of the machine, as 
 
 ## Other options
 
-| Variable                     | Description                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| `FRAGMENT_BUFFER_MAX_LENGTH` | Max number of fragments to keep in the buffer for new pull connections. Default: `10` |
+| Variable                      | Description                                                                                               |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `FRAGMENT_BUFFER_MAX_LENGTH`  | Max number of fragments to keep in the buffer for new pull connections. Default: `10`                     |
+| `RELAY_INACTIVITY_PERIOD_SEC` | Relay inactivity period (seconds). After double this period, a relay is closed if inactive. Default: `30` |
 
 ## Health check
 

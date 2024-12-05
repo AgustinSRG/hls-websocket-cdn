@@ -420,6 +420,7 @@ func makeTestServer(logger *glog.Logger, publishRegistry *MockPublishRegistry, a
 		RelayFromEnabled:        relayFrom != "",
 		FragmentBufferMaxLength: DEFAULT_FRAGMENT_BUFFER_MAX_LENGTH,
 		MaxBinaryMessageSize:    DEFAULT_MAX_BINARY_MSG_SIZE,
+		InactivityPeriodSeconds: RELAY_DEFAULT_INACTIVITY_PERIOD,
 		HasPublishRegistry:      publishRegistry != nil,
 	}, authController, publishRegistry, memoryLimiter, logger.CreateChildLogger("[Relays] "))
 

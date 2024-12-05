@@ -22,6 +22,9 @@ type RelayControllerConfig struct {
 	// Max binary message size
 	MaxBinaryMessageSize int64
 
+	// Inactivity period (seconds)
+	InactivityPeriodSeconds int
+
 	// True if it has a publish registry
 	HasPublishRegistry bool
 }

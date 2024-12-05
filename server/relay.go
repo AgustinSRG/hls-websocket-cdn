@@ -65,6 +65,9 @@ type HlsRelay struct {
 	// Channel to interrupt the heartbeat thread
 	heartbeatInterruptChannel chan bool
 
+	// Channel to interrupt the inactivity check
+	inactivityCheckInterruptChannel chan bool
+
 	// True if ready
 	ready bool
 
@@ -78,25 +81,26 @@ func NewHlsRelay(controller *RelayController, id uint64, url string, streamId st
 	readyWaitGroup.Add(1)
 
 	return &HlsRelay{
-		id:                        id,
-		mu:                        &sync.Mutex{},
-		controller:                controller,
-		logger:                    controller.logger.CreateChildLogger("[#" + fmt.Sprint(id) + "] "),
-		url:                       url,
-		streamId:                  streamId,
-		onlySource:                onlySource,
-		listeners:                 make(map[uint64]*HlsSourceListener),
-		fragmentBuffer:            make([]*HlsFragment, 0),
-		fragmentBufferMaxLength:   fragmentBufferMaxLength,
-		closed:                    false,
-		connected:                 false,
-		socket:                    nil,
-		currentFragment:           nil,
-		expectedBinary:            false,
-		inactivityWarning:         false,
-		heartbeatInterruptChannel: make(chan bool, 1),
-		ready:                     false,
-		readyWaitGroup:            readyWaitGroup,
+		id:                              id,
+		mu:                              &sync.Mutex{},
+		controller:                      controller,
+		logger:                          controller.logger.CreateChildLogger("[#" + fmt.Sprint(id) + "] "),
+		url:                             url,
+		streamId:                        streamId,
+		onlySource:                      onlySource,
+		listeners:                       make(map[uint64]*HlsSourceListener),
+		fragmentBuffer:                  make([]*HlsFragment, 0),
+		fragmentBufferMaxLength:         fragmentBufferMaxLength,
+		closed:                          false,
+		connected:                       false,
+		socket:                          nil,
+		currentFragment:                 nil,
+		expectedBinary:                  false,
+		inactivityWarning:               false,
+		heartbeatInterruptChannel:       make(chan bool, 1),
+		inactivityCheckInterruptChannel: make(chan bool, 1),
+		ready:                           false,
+		readyWaitGroup:                  readyWaitGroup,
 	}
 }
 
@@ -199,6 +203,7 @@ func (relay *HlsRelay) Close() {
 	relay.connected = false
 
 	relay.heartbeatInterruptChannel <- true
+	relay.inactivityCheckInterruptChannel <- true
 }
 
 // Adds fragment
@@ -318,6 +323,7 @@ func (relay *HlsRelay) Run() {
 
 	// Send heartbeat messages periodically
 	go relay.sendHeartbeatMessages(socket)
+	go relay.periodicallyCheckInactivity()
 
 	// Read incoming messages
 
@@ -526,9 +532,26 @@ func (relay *HlsRelay) sendHeartbeatMessages(socket *websocket.Conn) {
 
 			_ = socket.WriteMessage(websocket.TextMessage, []byte(msg.Serialize()))
 		}
+	}
+}
 
-		if relay.checkInactivity() {
+func (relay *HlsRelay) periodicallyCheckInactivity() {
+	inactivityPeriodSeconds := relay.controller.config.InactivityPeriodSeconds
+
+	if inactivityPeriodSeconds < 1 {
+		inactivityPeriodSeconds = 1
+	}
+
+	inactivityPeriod := time.Duration(inactivityPeriodSeconds) * time.Second
+
+	for {
+		select {
+		case <-relay.inactivityCheckInterruptChannel:
 			return
+		case <-time.After(inactivityPeriod):
+			if relay.checkInactivity() {
+				return
+			}
 		}
 	}
 }
