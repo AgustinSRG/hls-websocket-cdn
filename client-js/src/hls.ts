@@ -32,6 +32,7 @@ export class HlsWebSocket extends Hls {
         const client = new HlsWebSocketCdnClient(options);
 
         super({
+            enableWorker: false,
             ...(hlsConfig || {}),
             loader: getLoaderClass(client, options),
         });
