@@ -1,6 +1,6 @@
 {
   "name": "@asanrom/hls-websocket-cdn",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Javascript client for HLS WebSocket CDN.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
