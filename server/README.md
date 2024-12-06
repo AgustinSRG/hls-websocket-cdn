@@ -4,6 +4,8 @@ This the main backend component for **HLS WebSocket CDN**, implemented in golang
 
 ## Compilation
 
+To compile the source code, you need to install [Go](https://go.dev/doc/install). Install the latest stable version to avoid bugs.
+
 In order to install dependencies, type:
 
 ```sh
@@ -41,8 +43,9 @@ services:
       #- '443:443'
     environment:
       # Configure it using env vars:
-      - LOG_INFO=YES
-      - LOG_DEBUG=NO
+      - PULL_SECRET=change_me
+      - PUSH_ALLOWED=YES
+      - PUSH_SECRET=change_me
 ```
 
 ## Configuration

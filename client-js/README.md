@@ -26,7 +26,6 @@ You need a video element and the connection details (normally given by the backe
 
 Here is an example:
 
-
 ```html
 <script type="text/javascript" src="/path/to/hls-websocket-cdn.js"></script>
 <video id="video"></video>
@@ -45,7 +44,7 @@ Here is an example:
         var hls = new HlsWebSocket({
             cdnServerUrl: cdnUrl,
             streamId: cdnStreamId,
-
+            authToken: cdnAuth,
         });
 
         // Call start() to connect to the server
@@ -67,3 +66,19 @@ Here is an example:
 
  - [Typescript documentation](https://agustinsrg.github.io/hls-websocket-cdn/client-js/docs)
  - [HLS.js API documentation](https://github.com/video-dev/hls.js/blob/master/docs/API.md)
+
+## Build instructions
+
+To build the code, you need to install [Node.js](https://nodejs.org/en/). Install the latest stable version to avoid bugs.
+
+Once installed, run the following command to install dependencies:
+
+```sh
+npm install
+```
+
+Run the following command to build the library:
+
+```sh
+npm run build
+```

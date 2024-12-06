@@ -4,10 +4,26 @@ This project is a simple CDN (Content delivery network) to deliver HLS (HTTP Liv
 
 The project incudes the following components:
 
- - [Server](./server/) - The main backend component of the CDN, implemented in the [Go](https://go.dev/) programming language.
- - [Javascript client](./client-js/) - A JavasScript client for browsers to be able to receive the streams.
- - [Publisher client library](./client-publisher/) - A library to publish to the CDN, implemented in the [Go](https://go.dev/) programming language.
- - [Tester](./tester/) - Test program to publish video files in loop and spectate from a browser.
+ - [Server](./server/README.md) - The main backend component of the CDN, implemented in the [Go](https://go.dev/) programming language.
+ - [Javascript client](./client-js/README.md) - A JavasScript client for browsers to be able to receive the streams.
+ - [Publisher client library](./client-publisher/README.md) - A library to publish to the CDN, implemented in the [Go](https://go.dev/) programming language.
+ - [Tester](./tester/README.md) - Test program to publish video files in loop and spectate from a browser.
+
+## Installation
+
+To use the project, the best method is to run the server with Docker. 
+
+You can find the docker image for this project available in Docker Hub: https://hub.docker.com/r/asanrom/hls-websocket-cdn
+
+To pull it type:
+
+```sh
+docker pull asanrom/hls-websocket-cdn
+```
+
+Make sure to read the [image overview](https://hub.docker.com/r/asanrom/hls-websocket-cdn) to know about all the configuration options.
+
+You can also compile the server yourself. In order to do that, read the [server compilation instructions](./server/README.md#compilation).
 
 ## Design
 
@@ -35,6 +51,7 @@ Example: You can separate the servers used to publish from the servers used to r
 
 ## Documentation
 
+ - [Server configuration options](./server/README.md#configuration)
  - [Websocket protocol documentation](./documentation/websocket-protocol.md)
  - [Authentication mechanism documentation](./documentation/authentication.md)
 

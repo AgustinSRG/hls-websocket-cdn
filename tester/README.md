@@ -4,6 +4,8 @@ This is a simple program to manually test the CDN, allowing to publish a video i
 
 ## Compilation
 
+To compile the source code, you need to install [Go](https://go.dev/doc/install). Install the latest stable version to avoid bugs.
+
 To install dependencies, type:
 
 ```sh
