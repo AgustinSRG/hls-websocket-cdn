@@ -2,6 +2,8 @@ github.com/AgustinSRG/genv v1.0.0 h1:yQO7F41wRO+omi7rKXiYTzpYD3ViOOqFYjeNyCqxbWE
 github.com/AgustinSRG/genv v1.0.0/go.mod h1:/Sc1lWYugqlojDn54ueleveCxw0ee3GbZxPtoh3EujQ=
 github.com/AgustinSRG/glog v1.0.1 h1:jZGyDCLeLaJd6rwPXVxRIZvuQq2kmSxbZOySREDZ+r8=
 github.com/AgustinSRG/glog v1.0.1/go.mod h1:Yg/g19FNmm5zp/eaVDV8EvKJoEVz4ry6EgSQHinMTAA=
+github.com/AgustinSRG/go-tls-certificate-loader v1.0.0 h1:nX2D/vdd+BzC6fjUKCIPVrsx04cBmeLs+W4+QOQF5A0=
+github.com/AgustinSRG/go-tls-certificate-loader v1.0.0/go.mod h1:7w2gdPbY/+wVg8AbureQVBcvOJSZVcYYtYJXoBVWDcU=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
