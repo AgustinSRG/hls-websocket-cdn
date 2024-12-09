@@ -15,31 +15,6 @@ const HEARTBEAT_PERIOD = 30 * 1000;
 const RECONNECT_DELAY = 1000;
 
 /**
- * Callback to receive a playlist
- */
-export type PlaylistRequestCallback = (err: HlsWebSocketCdnClientErrorState | null, playlist: string) => void;
-
-/**
- * Fragment of the playlist
- */
-export interface PlaylistFragment {
-    /**
-     * Index of the fragment
-     */
-    index: number;
-
-    /**
-     * Fragment duration (seconds)
-     */
-    duration: number;
-
-    /**
-     * Fragment data
-     */
-    data: ArrayBuffer;
-}
-
-/**
  * HLS websocket CDN client
  */
 export class HlsWebSocketCdnClient {
@@ -84,29 +59,9 @@ export class HlsWebSocketCdnClient {
     private lastReceivedMessage: number;
 
     /**
-     * List of fragments kept on the playlist
-     */
-    private playlist: PlaylistFragment[];
-
-    /**
-     * List of stale fragments
-     */
-    private staleFragments: PlaylistFragment[];
-
-    /**
      * True if playlist is ready
      */
     private playlistReady: boolean;
-
-    /**
-     * Max size of the playlist
-     */
-    private playlistMaxSize: number;
-
-    /**
-     * Index for the next fragment
-     */
-    private nextFragmentIndex: number;
 
     /**
      * Next fragment duration
@@ -114,21 +69,26 @@ export class HlsWebSocketCdnClient {
     private nextFragmentDuration: number;
 
     /**
-     * Counter to generate unique identifiers for listeners
+     * Function to call on fragment received
      */
-    private nextListenerId: number;
+    private onFragment: (duration: number, data: ArrayBuffer) => void;
 
     /**
-     * Map of listeners fot the playlist
+     * Function to call on close
      */
-    private playlistListeners: Map<number, PlaylistRequestCallback>;
+    private onClose: (err: HlsWebSocketCdnClientErrorState | null) => void;
 
     /**
      * Constructor. Creates instance of HlsWebSocketCdnClient
      * @param options The client options.
+     * @param onFragment Function to call when fragments are received
+     * @param onClose Function to call on close
      */
-    constructor(options: HlsWebSocketCdnClientOptions) {
+    constructor(options: HlsWebSocketCdnClientOptions, onFragment: (duration: number, data: ArrayBuffer) => void, onClose: (err: HlsWebSocketCdnClientErrorState | null) => void) {
         this.options = options;
+        this.onFragment = onFragment;
+        this.onClose = onClose;
+
         this.closed = false;
         this.error = null;
         this.ws = null;
@@ -136,13 +96,7 @@ export class HlsWebSocketCdnClient {
         this.heartbeatTimer = null;
         this.timeoutTimer = null;
         this.lastReceivedMessage = 0;
-        this.playlist = [];
-        this.staleFragments = [];
-        this.playlistMaxSize = options.internalPlaylistSize ? options.internalPlaylistSize : 10;
-        this.nextFragmentIndex = 0;
         this.nextFragmentDuration = 0;
-        this.nextListenerId = 0;
-        this.playlistListeners = new Map();
     }
 
     /**
@@ -306,23 +260,13 @@ export class HlsWebSocketCdnClient {
             return;
         }
 
-        const fragmentIndex = this.nextFragmentIndex;
-        this.nextFragmentIndex++;
-
-        this.playlist.push({
-            index: fragmentIndex,
-            duration: this.nextFragmentDuration,
-            data: data,
-        });
-
-        this.nextFragmentDuration = 0;
-
-        if (this.playlist.length > this.playlistMaxSize) {
-            // Remove oldest fragment
-            this.playlist.shift();
+        try {
+            this.onFragment(this.nextFragmentDuration, data);
+        } catch (ex) {
+            if (this.options.debug) {
+                console.error(ex);
+            }
         }
-
-        this.onPlaylistUpdated();
     }
 
     /**
@@ -337,122 +281,6 @@ export class HlsWebSocketCdnClient {
 
         this.timeoutTimer = setTimeout(this.onTimeout.bind(this), this.options.timeout ? this.options.timeout : 30000);
         this.connect();
-    }
-
-    /**
-     * Gets the playlist asynchronously
-     * @param callback The callback
-     * @returns The listener id
-     */
-    public getPlaylist(callback: PlaylistRequestCallback): number {
-        if (this.error) {
-            // Error
-            callback(this.error, "");
-            return -1;
-        } else if (this.playlistReady) {
-            // Playlist ready
-            this.staleFragments = this.playlist.slice();
-            callback(null, this.makePlaylist());
-            return -1;
-        }
-
-        const listenerId = this.nextListenerId;
-        this.nextListenerId++;
-
-        this.playlistListeners.set(listenerId, callback);
-    }
-
-    /**
-     * Removes playlist listener
-     * @param id The listener ID
-     */
-    public removePlaylistListener(id: number) {
-        if (id < 0) {
-            return;
-        }
-        this.playlistListeners.delete(id);
-    }
-
-    /**
-     * Generates the playlist
-     * @returns The playlist content
-     */
-    private makePlaylist(): string {
-        const lines = [
-            "#EXTM3U",
-            "#EXT-X-PLAYLIST-TYPE:EVENT",
-            "#EXT-X-VERSION:3",
-            "#EXT-X-TARGETDURATION:1",
-            "#EXT-X-MEDIA-SEQUENCE:" + (this.playlist.length > 0 ? this.playlist[0].index : 0),
-        ];
-
-        for (const fragment of this.playlist) {
-            lines.push("#EXTINF:" + fragment.duration.toFixed(6));
-            lines.push("" + fragment.index + ".ts");
-        }
-
-        if (this.closed) {
-            lines.push("#EXT-X-ENDLIST");
-        }
-
-        return lines.join("\n") + "\n";
-    }
-
-    /**
-     * Gets fragment data
-     * @param index The fragment index
-     * @returns The fragment data
-     */
-    public getFragment(index: number): ArrayBuffer | null {
-        for (const f of this.playlist) {
-            if (f.index === index) {
-                return f.data;
-            }
-        }
-
-        for (const f of this.staleFragments) {
-            if (f.index === index) {
-                return f.data;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Called when the playlist gets an update
-     */
-    private onPlaylistUpdated() {
-        // Cancel timeout, as the playlist has been finally updated
-        if (this.timeoutTimer) {
-            clearTimeout(this.timeoutTimer);
-            this.timeoutTimer = null;
-        }
-
-        // Playlist is now ready
-        this.playlistReady = true;
-
-        // Pre-clear listeners
-
-        const listenersToUpdate: PlaylistRequestCallback[] = [];
-
-        this.playlistListeners.forEach(listener => {
-            listenersToUpdate.push(listener);
-        });
-
-        this.playlistListeners.clear();
-
-        // Send playlist to the listeners
-
-        const playlist = this.makePlaylist();
-
-        listenersToUpdate.forEach(listener => {
-            listener(this.error, playlist);
-        });
-
-        if (listenersToUpdate.length > 0) {
-            this.staleFragments = this.playlist.slice();
-        }
     }
 
     /**
@@ -486,6 +314,6 @@ export class HlsWebSocketCdnClient {
 
         this.closed = true;
 
-        this.onPlaylistUpdated();
+        this.onClose(this.error);
     }
 }

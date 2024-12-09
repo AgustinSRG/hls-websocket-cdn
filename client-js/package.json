@@ -50,6 +50,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "hls.js": "1.5.17"
+    "mux.js": "6.3.0"
   }
 }

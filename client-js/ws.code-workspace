@@ -9,5 +9,8 @@
             "node_modules": true,
             "dist": true
         },
+        "cSpell.words": [
+            "transmuxer"
+        ],
     }
 }

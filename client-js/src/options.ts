@@ -20,10 +20,26 @@ export interface HlsWebSocketCdnClientOptions {
     authToken: string;
 
     /**
-     * Internal playlist size
-     * The max number of fragments to keep in memory
+     * Max delay in seconds
+     * If player is playing with more delay than this, automatically seek.
+     * Default: 30
      */
-    internalPlaylistSize?: number;
+    maxDelay?: number;
+
+    /**
+     * Max duration of the SourceBuffer in seconds
+     * If this duration is exceeded, oldest data will be removed from the buffer
+     * By default, double the value of maxDelay
+     */
+    maxBufferDuration?: number;
+
+    /**
+     * Max length for the segment queue
+     * The segments are appended to the queue, waiting for them to be processed
+     * It must be limited to prevent a memory crash if the processing is too slow
+     * Default: 32
+     */
+    maxSegmentQueueLength?: number;
 
     /**
      * Timeout (milliseconds) to start pulling the stream
