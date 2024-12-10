@@ -11,33 +11,11 @@ import { type HlsWebSocketCdnClientOptions } from "./options";
 export type HlsWebSocketCdnClientErrorState = "error-timeout" | "error-auth";
 
 const HEARTBEAT_PERIOD = 30 * 1000;
+const HEARTBEAT_DEADLINE = HEARTBEAT_PERIOD * 2;
 
 const RECONNECT_DELAY = 1000;
 
-/**
- * Callback to receive a playlist
- */
-export type PlaylistRequestCallback = (err: HlsWebSocketCdnClientErrorState | null, playlist: string) => void;
-
-/**
- * Fragment of the playlist
- */
-export interface PlaylistFragment {
-    /**
-     * Index of the fragment
-     */
-    index: number;
-
-    /**
-     * Fragment duration (seconds)
-     */
-    duration: number;
-
-    /**
-     * Fragment data
-     */
-    data: ArrayBuffer;
-}
+const LOG_PREFIX = "[HlsWebSocket] [HlsWebSocketCdnClient] [DEBUG] ";
 
 /**
  * HLS websocket CDN client
@@ -84,29 +62,9 @@ export class HlsWebSocketCdnClient {
     private lastReceivedMessage: number;
 
     /**
-     * List of fragments kept on the playlist
+     * True if ready
      */
-    private playlist: PlaylistFragment[];
-
-    /**
-     * List of stale fragments
-     */
-    private staleFragments: PlaylistFragment[];
-
-    /**
-     * True if playlist is ready
-     */
-    private playlistReady: boolean;
-
-    /**
-     * Max size of the playlist
-     */
-    private playlistMaxSize: number;
-
-    /**
-     * Index for the next fragment
-     */
-    private nextFragmentIndex: number;
+    private ready: boolean;
 
     /**
      * Next fragment duration
@@ -114,14 +72,14 @@ export class HlsWebSocketCdnClient {
     private nextFragmentDuration: number;
 
     /**
-     * Counter to generate unique identifiers for listeners
+     * Event function to call on fragment received
      */
-    private nextListenerId: number;
+    public onFragment: (duration: number, data: ArrayBuffer) => void;
 
     /**
-     * Map of listeners fot the playlist
+     * Event function to call on close
      */
-    private playlistListeners: Map<number, PlaylistRequestCallback>;
+    public onClose: (err: HlsWebSocketCdnClientErrorState | null) => void;
 
     /**
      * Constructor. Creates instance of HlsWebSocketCdnClient
@@ -129,6 +87,9 @@ export class HlsWebSocketCdnClient {
      */
     constructor(options: HlsWebSocketCdnClientOptions) {
         this.options = options;
+        this.onFragment = null;
+        this.onClose = null;
+
         this.closed = false;
         this.error = null;
         this.ws = null;
@@ -136,13 +97,7 @@ export class HlsWebSocketCdnClient {
         this.heartbeatTimer = null;
         this.timeoutTimer = null;
         this.lastReceivedMessage = 0;
-        this.playlist = [];
-        this.staleFragments = [];
-        this.playlistMaxSize = options.internalPlaylistSize ? options.internalPlaylistSize : 10;
-        this.nextFragmentIndex = 0;
         this.nextFragmentDuration = 0;
-        this.nextListenerId = 0;
-        this.playlistListeners = new Map();
     }
 
     /**
@@ -179,6 +134,9 @@ export class HlsWebSocketCdnClient {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onopen = () => {
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Connected");
+            }
             this.authenticate();
             this.lastReceivedMessage = Date.now();
             this.heartbeatTimer = setInterval(this.heartbeat.bind(this), HEARTBEAT_PERIOD);
@@ -197,14 +155,22 @@ export class HlsWebSocketCdnClient {
                 const parsedMessage = parseCdnWebSocketMessage(ev.data + "");
 
                 switch (parsedMessage.type) {
+                    case "OK":
+                        if (this.options.debug) {
+                            console.log(LOG_PREFIX + "OK received. Ready to receive fragments.");
+                        }
+                        break;
                     case "E":
+                        if (this.options.debug) {
+                            console.log(LOG_PREFIX + "Error from server: " + parsedMessage.parameters.get("code") + " - " + parsedMessage.parameters.get("message"));
+                        }
                         this.close("error-auth");
                         break;
                     case "F":
                         this.receiveFragmentMetadata(parsedMessage);
                         break;
                     case "CLOSE":
-                        if (this.playlistReady) {
+                        if (this.ready) {
                             // Stream ended
                             this.close();
                         }
@@ -219,10 +185,20 @@ export class HlsWebSocketCdnClient {
                 this.heartbeatTimer = null;
             }
 
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Disconnected");
+            }
+
             this.ws = null;
 
             if (!this.closed) {
                 this.reconnect();
+            }
+        };
+
+        this.ws.onerror = err => {
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Error", err);
             }
         };
     }
@@ -235,6 +211,9 @@ export class HlsWebSocketCdnClient {
             this.reconnectTimer = null;
             this.connect();
         }, RECONNECT_DELAY);
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Scheduled reconnection (" + RECONNECT_DELAY + "ms)");
+        }
     }
 
     /**
@@ -250,6 +229,7 @@ export class HlsWebSocketCdnClient {
             parameters: new Map([
                 ["stream", this.options.streamId],
                 ["auth", this.options.authToken],
+                ["max_initial_fragments", (this.options.maxInitialFragments || "") + ""],
             ]),
         }));
     }
@@ -267,8 +247,11 @@ export class HlsWebSocketCdnClient {
             type: "H",
         }));
 
-        if (Date.now() - this.lastReceivedMessage > (HEARTBEAT_PERIOD * 2)) {
+        if (Date.now() - this.lastReceivedMessage > HEARTBEAT_DEADLINE) {
             // Server inactivity
+            if (this.options.debug) {
+                console.log("[HlsWebSocket] [Mp4Muxer] [Client] Server inactivity");
+            }
             this.ws.close();
         }
     }
@@ -306,23 +289,26 @@ export class HlsWebSocketCdnClient {
             return;
         }
 
-        const fragmentIndex = this.nextFragmentIndex;
-        this.nextFragmentIndex++;
-
-        this.playlist.push({
-            index: fragmentIndex,
-            duration: this.nextFragmentDuration,
-            data: data,
-        });
-
-        this.nextFragmentDuration = 0;
-
-        if (this.playlist.length > this.playlistMaxSize) {
-            // Remove oldest fragment
-            this.playlist.shift();
+        if (this.timeoutTimer) {
+            clearTimeout(this.timeoutTimer);
+            this.timeoutTimer = null;
         }
 
-        this.onPlaylistUpdated();
+        this.ready = true;
+
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Fragment received (Duration=" + this.nextFragmentDuration + "s, Size=" + data.byteLength + " bytes)");
+        }
+
+        if (this.onFragment) {
+            try {
+                this.onFragment(this.nextFragmentDuration, data);
+            } catch (ex) {
+                if (this.options.debug) {
+                    console.error(ex);
+                }
+            }
+        }
     }
 
     /**
@@ -340,125 +326,12 @@ export class HlsWebSocketCdnClient {
     }
 
     /**
-     * Gets the playlist asynchronously
-     * @param callback The callback
-     * @returns The listener id
-     */
-    public getPlaylist(callback: PlaylistRequestCallback): number {
-        if (this.error) {
-            // Error
-            callback(this.error, "");
-            return -1;
-        } else if (this.playlistReady) {
-            // Playlist ready
-            this.staleFragments = this.playlist.slice();
-            callback(null, this.makePlaylist());
-            return -1;
-        }
-
-        const listenerId = this.nextListenerId;
-        this.nextListenerId++;
-
-        this.playlistListeners.set(listenerId, callback);
-    }
-
-    /**
-     * Removes playlist listener
-     * @param id The listener ID
-     */
-    public removePlaylistListener(id: number) {
-        if (id < 0) {
-            return;
-        }
-        this.playlistListeners.delete(id);
-    }
-
-    /**
-     * Generates the playlist
-     * @returns The playlist content
-     */
-    private makePlaylist(): string {
-        const lines = [
-            "#EXTM3U",
-            "#EXT-X-PLAYLIST-TYPE:EVENT",
-            "#EXT-X-VERSION:3",
-            "#EXT-X-TARGETDURATION:1",
-            "#EXT-X-MEDIA-SEQUENCE:" + (this.playlist.length > 0 ? this.playlist[0].index : 0),
-        ];
-
-        for (const fragment of this.playlist) {
-            lines.push("#EXTINF:" + fragment.duration.toFixed(6));
-            lines.push("" + fragment.index + ".ts");
-        }
-
-        if (this.closed) {
-            lines.push("#EXT-X-ENDLIST");
-        }
-
-        return lines.join("\n") + "\n";
-    }
-
-    /**
-     * Gets fragment data
-     * @param index The fragment index
-     * @returns The fragment data
-     */
-    public getFragment(index: number): ArrayBuffer | null {
-        for (const f of this.playlist) {
-            if (f.index === index) {
-                return f.data;
-            }
-        }
-
-        for (const f of this.staleFragments) {
-            if (f.index === index) {
-                return f.data;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Called when the playlist gets an update
-     */
-    private onPlaylistUpdated() {
-        // Cancel timeout, as the playlist has been finally updated
-        if (this.timeoutTimer) {
-            clearTimeout(this.timeoutTimer);
-            this.timeoutTimer = null;
-        }
-
-        // Playlist is now ready
-        this.playlistReady = true;
-
-        // Pre-clear listeners
-
-        const listenersToUpdate: PlaylistRequestCallback[] = [];
-
-        this.playlistListeners.forEach(listener => {
-            listenersToUpdate.push(listener);
-        });
-
-        this.playlistListeners.clear();
-
-        // Send playlist to the listeners
-
-        const playlist = this.makePlaylist();
-
-        listenersToUpdate.forEach(listener => {
-            listener(this.error, playlist);
-        });
-
-        if (listenersToUpdate.length > 0) {
-            this.staleFragments = this.playlist.slice();
-        }
-    }
-
-    /**
      * Called on timeout
      */
     private onTimeout() {
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Timed out");
+        }
         this.timeoutTimer = null;
         this.close("error-timeout");
     }
@@ -486,6 +359,18 @@ export class HlsWebSocketCdnClient {
 
         this.closed = true;
 
-        this.onPlaylistUpdated();
+        if (this.onClose) {
+            this.onClose(this.error);
+        }
+    }
+
+    /**
+     * Releases resources and closes the connection
+     */
+    public destroy() {
+        this.onClose = null;
+        this.onFragment = null;
+
+        this.close();
     }
 }

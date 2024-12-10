@@ -9,5 +9,13 @@
             "node_modules": true,
             "dist": true
         },
+        "cSpell.words": [
+            "muxer",
+            "Muxer",
+            "remuxed",
+            "remuxing",
+            "transmuxed",
+            "transmuxer"
+        ],
     }
 }
