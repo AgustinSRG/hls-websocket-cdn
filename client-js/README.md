@@ -65,7 +65,6 @@ Here is an example:
 ## Documentation
 
  - [Typescript documentation](https://agustinsrg.github.io/hls-websocket-cdn/client-js/docs)
- - [HLS.js API documentation](https://github.com/video-dev/hls.js/blob/master/docs/API.md)
 
 ## Build instructions
 
