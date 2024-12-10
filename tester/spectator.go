@@ -73,7 +73,9 @@ func (server *SpectatorServer) GetSpectatorTesterPageScript() string {
             		streamId: STREAM_ID,
 					authToken: AUTH_TOKEN,
 					debug: true,
-        		}, {debug: true, liveMaxLatencyDuration: 6, liveSyncDuration: 5});
+					delay: 5,
+					maxDelay: 6,
+        		});
 
 				hls.start();
 

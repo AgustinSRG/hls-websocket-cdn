@@ -20,6 +20,8 @@ node_modules
 # Ignore temp files
 
 temp
+test.js
+0.ts
 
 npm-debug.log
 core

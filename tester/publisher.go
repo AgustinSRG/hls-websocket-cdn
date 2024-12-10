@@ -295,7 +295,7 @@ func publishStream(logger *glog.Logger, ffmpegPath string, videoPath string, url
 
 	cmd.Args = append(cmd.Args, "-re", "-stream_loop", "-1", "-i", videoPath)
 
-	cmd.Args = append(cmd.Args, "-vcodec", "libx264", "-acodec", "aac", "-preset", "veryfast")
+	cmd.Args = append(cmd.Args, "-vcodec", "libx264", "-acodec", "aac", "-preset", "veryfast", "-pix_fmt", "yuv420p")
 
 	cmd.Args = append(cmd.Args, "-force_key_frames", "expr:gte(t,n_forced*"+fmt.Sprint(HLS_DEFAULT_SEGMENT_TIME)+")")
 

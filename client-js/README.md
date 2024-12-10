@@ -2,8 +2,6 @@
 
 This is a JavaScript client for **HLS WebSocket CDN**. You can use it in order to connect to the CDN servers and play the streams from a web browser.
 
-This client is built on top of [HLS.js](https://github.com/video-dev/hls.js).
-
 ## Installation
 
 If you are using a npm managed project use:
