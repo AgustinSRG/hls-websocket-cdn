@@ -1,5 +1,7 @@
 # HLS WebSocket CDN - Javascript client
 
+[![npm version](https://badge.fury.io/js/%40asanrom%2Fhls-websocket-cdn.svg)](https://www.npmjs.com/package/@asanrom/hls-websocket-cdn)
+
 This is a JavaScript client for **HLS WebSocket CDN**. You can use it in order to connect to the CDN servers and play the streams from a web browser.
 
 ## Installation
