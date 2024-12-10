@@ -23,6 +23,9 @@ export function serializeCdnWebSocketMessage(msg: CdnWebSocketMessage): string {
         const paramArray: string[] = [];
 
         msg.parameters.forEach((v, k) => {
+            if (!v) {
+                return;
+            }
             paramArray.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
         });
 

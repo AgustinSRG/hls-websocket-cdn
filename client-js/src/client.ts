@@ -11,8 +11,11 @@ import { type HlsWebSocketCdnClientOptions } from "./options";
 export type HlsWebSocketCdnClientErrorState = "error-timeout" | "error-auth";
 
 const HEARTBEAT_PERIOD = 30 * 1000;
+const HEARTBEAT_DEADLINE = HEARTBEAT_PERIOD * 2;
 
 const RECONNECT_DELAY = 1000;
+
+const LOG_PREFIX = "[HlsWebSocket] [HlsWebSocketCdnClient] [DEBUG] ";
 
 /**
  * HLS websocket CDN client
@@ -59,9 +62,9 @@ export class HlsWebSocketCdnClient {
     private lastReceivedMessage: number;
 
     /**
-     * True if playlist is ready
+     * True if ready
      */
-    private playlistReady: boolean;
+    private ready: boolean;
 
     /**
      * Next fragment duration
@@ -69,25 +72,23 @@ export class HlsWebSocketCdnClient {
     private nextFragmentDuration: number;
 
     /**
-     * Function to call on fragment received
+     * Event function to call on fragment received
      */
-    private onFragment: (duration: number, data: ArrayBuffer) => void;
+    public onFragment: (duration: number, data: ArrayBuffer) => void;
 
     /**
-     * Function to call on close
+     * Event function to call on close
      */
-    private onClose: (err: HlsWebSocketCdnClientErrorState | null) => void;
+    public onClose: (err: HlsWebSocketCdnClientErrorState | null) => void;
 
     /**
      * Constructor. Creates instance of HlsWebSocketCdnClient
      * @param options The client options.
-     * @param onFragment Function to call when fragments are received
-     * @param onClose Function to call on close
      */
-    constructor(options: HlsWebSocketCdnClientOptions, onFragment: (duration: number, data: ArrayBuffer) => void, onClose: (err: HlsWebSocketCdnClientErrorState | null) => void) {
+    constructor(options: HlsWebSocketCdnClientOptions) {
         this.options = options;
-        this.onFragment = onFragment;
-        this.onClose = onClose;
+        this.onFragment = null;
+        this.onClose = null;
 
         this.closed = false;
         this.error = null;
@@ -133,6 +134,9 @@ export class HlsWebSocketCdnClient {
         this.ws.binaryType = "arraybuffer";
 
         this.ws.onopen = () => {
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Connected");
+            }
             this.authenticate();
             this.lastReceivedMessage = Date.now();
             this.heartbeatTimer = setInterval(this.heartbeat.bind(this), HEARTBEAT_PERIOD);
@@ -151,14 +155,22 @@ export class HlsWebSocketCdnClient {
                 const parsedMessage = parseCdnWebSocketMessage(ev.data + "");
 
                 switch (parsedMessage.type) {
+                    case "OK":
+                        if (this.options.debug) {
+                            console.log(LOG_PREFIX + "OK received. Ready to receive fragments.");
+                        }
+                        break;
                     case "E":
+                        if (this.options.debug) {
+                            console.log(LOG_PREFIX + "Error from server: " + parsedMessage.parameters.get("code") + " - " + parsedMessage.parameters.get("message"));
+                        }
                         this.close("error-auth");
                         break;
                     case "F":
                         this.receiveFragmentMetadata(parsedMessage);
                         break;
                     case "CLOSE":
-                        if (this.playlistReady) {
+                        if (this.ready) {
                             // Stream ended
                             this.close();
                         }
@@ -173,10 +185,20 @@ export class HlsWebSocketCdnClient {
                 this.heartbeatTimer = null;
             }
 
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Disconnected");
+            }
+
             this.ws = null;
 
             if (!this.closed) {
                 this.reconnect();
+            }
+        };
+
+        this.ws.onerror = err => {
+            if (this.options.debug) {
+                console.log(LOG_PREFIX + "Error", err);
             }
         };
     }
@@ -189,6 +211,9 @@ export class HlsWebSocketCdnClient {
             this.reconnectTimer = null;
             this.connect();
         }, RECONNECT_DELAY);
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Scheduled reconnection (" + RECONNECT_DELAY + "ms)");
+        }
     }
 
     /**
@@ -204,6 +229,7 @@ export class HlsWebSocketCdnClient {
             parameters: new Map([
                 ["stream", this.options.streamId],
                 ["auth", this.options.authToken],
+                ["max_initial_fragments", (this.options.maxInitialFragments || "") + ""],
             ]),
         }));
     }
@@ -221,8 +247,11 @@ export class HlsWebSocketCdnClient {
             type: "H",
         }));
 
-        if (Date.now() - this.lastReceivedMessage > (HEARTBEAT_PERIOD * 2)) {
+        if (Date.now() - this.lastReceivedMessage > HEARTBEAT_DEADLINE) {
             // Server inactivity
+            if (this.options.debug) {
+                console.log("[HlsWebSocket] [Mp4Muxer] [Client] Server inactivity");
+            }
             this.ws.close();
         }
     }
@@ -260,11 +289,24 @@ export class HlsWebSocketCdnClient {
             return;
         }
 
-        try {
-            this.onFragment(this.nextFragmentDuration, data);
-        } catch (ex) {
-            if (this.options.debug) {
-                console.error(ex);
+        if (this.timeoutTimer) {
+            clearTimeout(this.timeoutTimer);
+            this.timeoutTimer = null;
+        }
+
+        this.ready = true;
+
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Fragment received (Duration=" + this.nextFragmentDuration + "s, Size=" + data.byteLength + " bytes)");
+        }
+
+        if (this.onFragment) {
+            try {
+                this.onFragment(this.nextFragmentDuration, data);
+            } catch (ex) {
+                if (this.options.debug) {
+                    console.error(ex);
+                }
             }
         }
     }
@@ -287,6 +329,9 @@ export class HlsWebSocketCdnClient {
      * Called on timeout
      */
     private onTimeout() {
+        if (this.options.debug) {
+            console.log(LOG_PREFIX + "Timed out");
+        }
         this.timeoutTimer = null;
         this.close("error-timeout");
     }
@@ -314,6 +359,18 @@ export class HlsWebSocketCdnClient {
 
         this.closed = true;
 
-        this.onClose(this.error);
+        if (this.onClose) {
+            this.onClose(this.error);
+        }
+    }
+
+    /**
+     * Releases resources and closes the connection
+     */
+    public destroy() {
+        this.onClose = null;
+        this.onFragment = null;
+
+        this.close();
     }
 }

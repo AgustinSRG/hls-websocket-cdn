@@ -20,9 +20,15 @@ export interface HlsWebSocketCdnClientOptions {
     authToken: string;
 
     /**
-     * Max delay in seconds
-     * If player is playing with more delay than this, automatically seek.
+     * Desired delay in seconds
      * Default: 30
+     */
+    delay?: number;
+
+    /**
+     * Max delay in seconds
+     * If player is playing with more delay than this, automatically seek to the delay.
+     * Default: delay + 1
      */
     maxDelay?: number;
 
@@ -40,6 +46,21 @@ export interface HlsWebSocketCdnClientOptions {
      * Default: 32
      */
     maxSegmentQueueLength?: number;
+
+    /**
+     * Max number of fragments to requests from the server buffer
+     * They will be received immediately after authentication if available
+     * Reduce the number to prevent a big initial load
+     */
+    maxInitialFragments?: number;
+
+    /**
+     * Max length for the fragment queue
+     * The fragments are appended to the queue, waiting for them to be remuxed
+     * It must be limited to prevent a memory crash if the remuxing process is too slow
+     * Default: 32
+     */
+    maxFragmentQueueLength?: number;
 
     /**
      * Timeout (milliseconds) to start pulling the stream
