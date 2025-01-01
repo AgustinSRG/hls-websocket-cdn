@@ -5,7 +5,7 @@ This project is a simple CDN (Content delivery network) to deliver HLS (HTTP Liv
 The project incudes the following components:
 
  - [Server](./server/README.md) - The main backend component of the CDN, implemented in the [Go](https://go.dev/) programming language.
- - [Javascript client](./client-js/README.md) - A JavasScript client for browsers to be able to receive the streams.
+ - [JavaScript client](./client-js/README.md) - A JavaScript client for browsers to be able to receive the streams.
  - [Publisher client library](./client-publisher/README.md) - A library to publish to the CDN, implemented in the [Go](https://go.dev/) programming language.
  - [Tester](./tester/README.md) - Test program to publish video files in loop and spectate from a browser.
 
